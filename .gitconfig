@@ -13,4 +13,4 @@
 [commit]
 	gpgsign = true
 [include]
-	path = ~/.gitconfig.wsl
+	path = ~/.wsl.gitconfig
