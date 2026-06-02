@@ -17,8 +17,8 @@ if ! command -v lnk >/dev/null 2>&1; then
 fi
 
 # Detect platform → lnk host, then restore that host's symlinks.
-# WSL is identified by the WSL_DISTRO_NAME env var or the wslinfo binary.
-if [ -n "${WSL_DISTRO_NAME:-}" ] || command -v wslinfo >/dev/null 2>&1; then
+# WSL is identified by the presence of the wslinfo binary.
+if command -v wslinfo >/dev/null 2>&1; then
   echo "bootstrap: WSL detected — restoring 'wsl' host config…"
   lnk pull --host wsl
 else
