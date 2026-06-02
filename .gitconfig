@@ -1,0 +1,16 @@
+[credential "https://github.com"]
+	helper =
+	helper = !/usr/bin/gh auth git-credential
+[credential "https://gist.github.com"]
+	helper =
+	helper = !/usr/bin/gh auth git-credential
+[user]
+	email = me@ariesclark.com
+	name = Aries Clark
+	signingkey = ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIA84z7zvURO1NVQDi29CJyNUVWBnBbk05QipP++qMq7k
+[gpg]
+	format = ssh
+[commit]
+	gpgsign = true
+[include]
+	path = ~/.gitconfig.wsl
