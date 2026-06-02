@@ -1,0 +1,6 @@
+# WSL/Windows-specific git config — managed by lnk as host "wsl".
+# Pulled in via `[include]` from ~/.gitconfig. Absent (and harmless) on other hosts.
+[core]
+	sshCommand = ssh.exe
+[gpg "ssh"]
+	program = "/mnt/c/Users/me/AppData/Local/Microsoft/WindowsApps/op-ssh-sign-wsl.exe"
