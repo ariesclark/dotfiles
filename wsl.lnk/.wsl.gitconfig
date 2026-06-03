@@ -1,10 +1,3 @@
-# WSL/Windows-specific git config — managed by lnk as host "wsl".
-# Pulled in via `[include]` from ~/.gitconfig. Absent (and harmless) on other hosts.
-#
-# Both programs below are bare names, not paths: WSL interop puts the Windows PATH
-# (System32\OpenSSH for ssh.exe, the per-user WindowsApps dir for op-ssh-sign) onto
-# the Linux PATH, so they resolve regardless of the Windows username. bootstrap.sh
-# verifies the 1Password signer is present and fails the restore if it is not.
 [core]
 	sshCommand = ssh.exe
 [gpg "ssh"]
