@@ -23,6 +23,9 @@ fail()      { error "$@"; exit 1; }
 
 has() { command -v "$1" 1>/dev/null 2>&1; }
 
+# dpkg check, not `has`: packages like ca-certificates are installed but not on PATH.
+pkg_present() { dpkg-query -W -f='${Status}' "$1" 2>/dev/null | grep -q "install ok installed"; }
+
 # Run a command with its output dimmed. Strip the child's own color codes (they would
 # cancel the dim) and merge stderr. Resets even on failure, then propagates the code.
 run() {
@@ -57,14 +60,20 @@ elevate_priv() {
 ensure_sudo() { [ -n "$_sudo_ready" ] && return; elevate_priv; _sudo_ready=1; }
 
 install_base_packages() {
-	info "Installing base packages: git curl ca-certificates"
+	local missing=() pkg
+	for pkg in git curl ca-certificates; do pkg_present "$pkg" || missing+=("$pkg"); done
+	[ "${#missing[@]}" -eq 0 ] && return
+
+	info "Installing base packages: ${missing[*]}"
 	ensure_sudo
 
 	run $SUDO apt-get update
-	run $SUDO apt-get install -y git curl ca-certificates
+	run $SUDO apt-get install -y "${missing[@]}"
 }
 
 install_github_cli() {
+	has gh && return
+
 	# gh is the GitHub credential helper in the common ~/.gitconfig, but isn't in
 	# Ubuntu's default repos — add GitHub's apt source (their documented method).
 	info "Installing gh from the GitHub CLI apt repo"
@@ -82,9 +91,22 @@ install_github_cli() {
 }
 
 install_lnk() {
+	has lnk && return
+
 	info "Installing lnk"
-	run bash -c 'curl -sSL https://raw.githubusercontent.com/yarlson/lnk/main/install.sh | bash'
+	run bash -c 'set -o pipefail; curl -sSL https://raw.githubusercontent.com/yarlson/lnk/main/install.sh | bash' \
+		|| fail "lnk install failed."
 	has lnk || fail "lnk installed but is not on PATH — open a new shell and re-run."
+}
+
+# Vite+ is the unified web toolchain (node + version management + package manager).
+# VP_NODE_MANAGER=yes skips its interactive prompt and lets it manage node, as on this host.
+install_vite_plus() {
+	[ -d "$HOME/.vite-plus" ] && [ -x "$HOME/.vite-plus/bin/vp" ] && return
+
+	info "Installing Vite+"
+	run bash -c 'set -o pipefail; curl -fsSL https://vite.plus | VP_NODE_MANAGER=yes bash' \
+		|| fail "Vite+ install failed (https://vite.plus)."
 }
 
 clone_dotfiles() {
@@ -119,6 +141,7 @@ info "Provisioning dotfiles from ${BOLD}${REPO}${NO_COLOR}"
 install_base_packages
 install_github_cli
 install_lnk
+install_vite_plus
 clone_dotfiles
 restore_host_config
 
