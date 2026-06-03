@@ -1,0 +1,51 @@
+{
+  "statusLine": {
+    "type": "command",
+    "command": "echo 'Force feminizing'"
+  },
+  "enabledPlugins": {
+    "ask-questions-if-underspecified@trailofbits": true,
+    "modern-python@trailofbits": false,
+    "agentic-actions-auditor@trailofbits": true,
+    "audit-context-building@trailofbits": true,
+    "constant-time-analysis@trailofbits": true,
+    "differential-review@trailofbits": true,
+    "dimensional-analysis@trailofbits": true,
+    "insecure-defaults@trailofbits": true,
+    "fp-check@trailofbits": false,
+    "sharp-edges@trailofbits": true,
+    "skill-improver@trailofbits": false,
+    "static-analysis@trailofbits": true,
+    "supply-chain-risk-auditor@trailofbits": true,
+    "testing-handbook-skills@trailofbits": true,
+    "workflow-skill-design@trailofbits": true,
+    "variant-analysis@trailofbits": true,
+    "plugin-dev@claude-plugins-official": true,
+    "skill-creator@claude-plugins-official": true
+  },
+  "extraKnownMarketplaces": {
+    "cloudflare": {
+      "source": {
+        "source": "github",
+        "repo": "cloudflare/skills"
+      },
+      "autoUpdate": true
+    },
+    "chrome-devtools-plugins": {
+      "source": {
+        "source": "github",
+        "repo": "ChromeDevTools/chrome-devtools-mcp"
+      }
+    },
+    "trailofbits": {
+      "source": {
+        "source": "github",
+        "repo": "trailofbits/skills"
+      },
+      "autoUpdate": true
+    }
+  },
+  "effortLevel": "xhigh",
+  "skipWorkflowUsageWarning": true,
+  "verbose": true
+}
