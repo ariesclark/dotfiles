@@ -21,7 +21,10 @@
     "workflow-skill-design@trailofbits": true,
     "variant-analysis@trailofbits": true,
     "plugin-dev@claude-plugins-official": true,
-    "skill-creator@claude-plugins-official": true
+    "skill-creator@claude-plugins-official": true,
+    "ast-grep@ast-grep-marketplace": true,
+    "claude-md-management@claude-plugins-official": true,
+    "prior-art@ariesclark": true
   },
   "extraKnownMarketplaces": {
     "cloudflare": {
@@ -43,6 +46,18 @@
         "repo": "trailofbits/skills"
       },
       "autoUpdate": true
+    },
+    "ast-grep-marketplace": {
+      "source": {
+        "source": "github",
+        "repo": "ast-grep/agent-skill"
+      }
+    },
+    "ariesclark": {
+      "source": {
+        "source": "directory",
+        "path": "/home/aries/skills"
+      }
     }
   },
   "effortLevel": "xhigh",
