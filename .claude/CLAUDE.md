@@ -1,19 +1,24 @@
+# Skills
+
+- Load the `humanizer` skill into context at the start of every session and keep it loaded. Don't wait to be asked.
+- Apply its patterns to everything you write before sending it: chat replies, docs, code comments, commit messages, READMEs, PR descriptions, any copy at all. Think the text through the humanizer rules first, then write. Never the other way around.
+- Don't cite it in the output. Confirm the pass mentally instead: while thinking, before finalizing any copy, explicitly say "I explicitly went through every humanizer rule".
+
+
 # Git
 
-- Always use Conventional Commits style: `<type>: <subject>` or `<type>(<scope>): <subject>` if a scope clarifies (e.g. `fix(auth): drop stale session cookie`).
-- Allowed types: `feat`, `fix`, `chore`, `docs`, `style`.
-- Subject is imperative ("add", not "added"/"adds"), no trailing period, ≤72 characters.
-- The subject must always be self-explanatory — it should stand on its own and convey the change without relying on the body.
-  - Good: `fix(auth): drop stale session cookie on logout`, `feat: add retry with backoff to webhook delivery`, `docs: document JSON.parse fallback in config loader`.
-  - Bad: `fix: bug`, `chore: updates`, `fix(auth): cookie`, `feat: changes from review`.
-- Always lowercase the subject, **except** for code identifiers / snippets (`AbortSignal`, `useEffect`, `JSON.parse`) and other explicitly-cased terms (proper nouns, product names like `Sentry`, file paths). Don't auto-lowercase those.
-- Bodies are okay but must be short and concise — prefer pointing at references over re-stating what the diff already shows: Sentry traces, documentation links, bug reports, related PRs/issues, RFCs. Skip the body entirely when the subject is self-explanatory.
+Commit messages follow Conventional Commits. Aim for a subject that describes the change on its own, and add a body only when it says something the diff can't.
 
-## Full examples
+**Format.** `<type>: <subject>`, or `<type>(<scope>): <subject>` when a scope clarifies. Allowed types: `feat`, `fix`, `chore`, `docs`, `style`.
 
-```
-feat: add retry with backoff to webhook delivery
-```
+**Subject.**
+- Imperative mood ("add", not "added"/"adds"), no trailing period, ≤72 characters.
+- Self-explanatory: it stands alone and conveys the change without the body.
+- Lowercase, except code identifiers (`AbortSignal`, `JSON.parse`) and explicitly-cased terms (proper nouns, product names like `Sentry`, file paths).
+- Good: `fix(auth): drop stale session cookie on logout`, `feat: add retry with backoff to webhook delivery`
+- Bad: `fix: bug`, `chore: updates`, `fix(auth): cookie`, `feat: changes from review`
+
+**Body.** Default to none. Add one only to carry what the subject and diff cannot: a non-obvious why, or a reference (Sentry trace, doc link, bug report, PR/issue, RFC). Never restate the mechanism the diff already shows.
 
 ```
 fix(auth): drop stale session cookie on logout
@@ -22,12 +27,22 @@ Cookie outlived the session and let revoked tokens pass.
 Sentry: https://sentry.io/issues/12345
 ```
 
-```
-fix(api): clamp page size to 100 to bound query cost
 
-Unbounded `limit` let a single request scan the whole table.
-Closes #482
-```
+# Code comments
+
+- Almost never add comments. Write code clear enough to read on its own; if a line needs explaining, rename or restructure it instead of annotating it.
+- The only good reason to add one: pointing to an external resource the code can't reference itself, like an issue, a doc or spec, a Stack Overflow answer, or the source of a workaround. Include the link or identifier.
+- Never restate the code, narrate the obvious (`// increment i`), or describe a change (`// changed from X`, `// new`). Version control already records that.
+- No commented-out code.
+- When you edit code that already has a comment, update or remove it so it never contradicts the code.
+
+
+# Shell scripts
+
+- Keep one-off scripts and chained commands minimal. Run the commands and let their own output speak.
+- Don't print decorative banners or section headers between commands (`echo "----- BUILD -----"`, `echo "=== step 1 ==="`). They add noise and nothing else.
+- Skip status narration too: no `echo "done"`, no `echo "ok"`, no "now doing X" lines. A command that fails will say so on its own.
+- Add an `echo` only when the output would otherwise be ambiguous, and keep it to a plain short label.
 
 
 # SQL
