@@ -1,7 +1,28 @@
 {
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Skill(humanizer)"
+    ]
+  },
+  "model": "claude-fable-5[1m]",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /home/aries/.config/lnk/.claude/hooks/pre-tool-use/hook.sh"
+          }
+        ]
+      }
+    ]
+  },
   "statusLine": {
     "type": "command",
-    "command": "echo 'Force feminizing'"
+    "command": "/home/aries/.config/lnk/.claude/statusline.sh",
+    "refreshInterval": 1
   },
   "enabledPlugins": {
     "ask-questions-if-underspecified@trailofbits": true,
@@ -24,7 +45,9 @@
     "skill-creator@claude-plugins-official": true,
     "ast-grep@ast-grep-marketplace": true,
     "claude-md-management@claude-plugins-official": true,
-    "prior-art@ariesclark": true
+    "prior-art@ariesclark": true,
+    "humanizer@ariesclark": true,
+    "sentry-cli@claude-plugins-official": true
   },
   "extraKnownMarketplaces": {
     "cloudflare": {
@@ -60,7 +83,7 @@
       }
     }
   },
-  "effortLevel": "xhigh",
+  "effortLevel": "medium",
   "skipWorkflowUsageWarning": true,
   "verbose": true
 }
