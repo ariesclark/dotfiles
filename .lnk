@@ -1,6 +1,6 @@
 .claude/CLAUDE.md
 .claude/settings.json
-.config/Code/User/keybindings.json
+.config/gh/config.yml
 .config/git/ignore
 .gitconfig
 .profile.d/exports.sh
