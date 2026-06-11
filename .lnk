@@ -3,3 +3,4 @@
 .config/Code/User/keybindings.json
 .config/git/ignore
 .gitconfig
+.profile.d/exports.sh

@@ -6,6 +6,12 @@
     ]
   },
   "model": "claude-fable-5[1m]",
+  "env": {
+    "DO_NOT_TRACK": "1",
+    "DISABLE_TELEMETRY": "1",
+    "DISABLE_ERROR_REPORTING": "1",
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"
+  },
   "hooks": {
     "PreToolUse": [
       {
