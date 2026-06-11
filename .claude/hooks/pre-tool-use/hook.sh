@@ -13,14 +13,15 @@ resolve="$directory/commands/$tool/resolve.sh"
 subject=$(printf '%s' "$input" | "$resolve")
 
 for rule in "$directory/commands/$tool/rules"/*.sh; do
-  [[ -x "$rule" ]] || continue
-  result=$("$rule" "$subject")
-  [[ -n "$result" ]] || continue
-  decision=${result%%$'\n'*}
-  message=${result#*$'\n'}
-  case "$decision" in
-    deny) jq -n --arg r "$message" '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"deny",permissionDecisionReason:$r}}' ;;
-    warn) jq -n --arg c "$message" '{hookSpecificOutput:{hookEventName:"PreToolUse",additionalContext:$c}}' ;;
-  esac
-  exit 0
+	[[ -x "$rule" ]] || continue
+	result=$("$rule" "$subject")
+	[[ -n "$result" ]] || continue
+	decision=${result%%$'\n'*}
+	message=${result#*$'\n'}
+	if [[ "$decision" == deny ]]; then
+		jq -n --arg r "$message" '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"deny",permissionDecisionReason:$r}}'
+	elif [[ "$decision" == warn ]]; then
+		jq -n --arg c "$message" '{hookSpecificOutput:{hookEventName:"PreToolUse",additionalContext:$c}}'
+	fi
+	exit 0
 done
