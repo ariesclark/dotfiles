@@ -1,30 +1,17 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
-  "permissions": {
-    "allow": [
-      "Skill(humanizer)"
-    ]
-  },
-  "model": "claude-fable-5[1m]",
   "env": {
     "DO_NOT_TRACK": "1",
     "DISABLE_TELEMETRY": "1",
     "DISABLE_ERROR_REPORTING": "1",
     "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"
   },
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash /home/aries/.config/lnk/.claude/hooks/pre-tool-use/hook.sh"
-          }
-        ]
-      }
+  "permissions": {
+    "allow": [
+      "Skill(humanizer)"
     ]
   },
+  "model": "claude-fable-5[1m]",
   "statusLine": {
     "type": "command",
     "command": "/home/aries/.config/lnk/.claude/statusline.sh",
@@ -51,9 +38,11 @@
     "skill-creator@claude-plugins-official": true,
     "ast-grep@ast-grep-marketplace": true,
     "claude-md-management@claude-plugins-official": true,
+    "guardrails@ariesclark": true,
     "prior-art@ariesclark": true,
     "humanizer@ariesclark": true,
-    "sentry-cli@claude-plugins-official": true
+    "sentry-cli@claude-plugins-official": true,
+    "github@ariesclark": true
   },
   "extraKnownMarketplaces": {
     "cloudflare": {
