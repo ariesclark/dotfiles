@@ -41,6 +41,11 @@ Sentry: https://sentry.io/issues/12345
 ```
 
 
+# Naming
+
+- Prefer full words over abbreviations: `command` not `cmd`, `response` not `res`, `directory` not `dir`. Abbreviate only when the long form is the unusual choice (`id`, `url`, established loop indices like `i`).
+
+
 # Code comments
 
 - Almost never add comments. Write code clear enough to read on its own; if a line needs explaining, rename or restructure it instead of annotating it.
