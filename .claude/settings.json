@@ -1,17 +1,10 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
-  "env": {
-    "DO_NOT_TRACK": "1",
-    "DISABLE_TELEMETRY": "1",
-    "DISABLE_ERROR_REPORTING": "1",
-    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"
-  },
   "permissions": {
     "allow": [
       "Skill(humanizer)"
     ]
   },
-  "model": "claude-fable-5[1m]",
   "statusLine": {
     "type": "command",
     "command": "/home/aries/.config/lnk/.claude/statusline.sh",
@@ -38,10 +31,10 @@
     "skill-creator@claude-plugins-official": true,
     "ast-grep@ast-grep-marketplace": true,
     "claude-md-management@claude-plugins-official": true,
-    "guardrails@ariesclark": true,
     "prior-art@ariesclark": true,
     "humanizer@ariesclark": true,
     "sentry-cli@claude-plugins-official": true,
+    "guardrails@ariesclark": true,
     "github@ariesclark": true
   },
   "extraKnownMarketplaces": {
@@ -80,5 +73,7 @@
   },
   "effortLevel": "medium",
   "skipWorkflowUsageWarning": true,
-  "verbose": true
+  "verbose": true,
+  "remoteControlAtStartup": true,
+  "tui": "fullscreen"
 }
