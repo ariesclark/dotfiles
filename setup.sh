@@ -175,6 +175,21 @@ install_github_cli() {
 	completed "installed: gh $(version gh)"
 }
 
+# yq parses YAML in shell scripts. Ubuntu's `yq` package is the python (kislyuk)
+# build, which the scripts that use it handle, so install it from apt.
+install_yq() {
+	if has yq; then
+		completed "up to date: yq $(version yq)"
+		return
+	fi
+
+	ensure_sudo
+	step "installing: yq"
+	run $SUDO apt-get update
+	run $SUDO apt-get install -y yq
+	completed "installed: yq $(version yq)"
+}
+
 install_lnk() {
 	install_step lnk lnk \
 		run_remote https://raw.githubusercontent.com/yarlson/lnk/main/install.sh
@@ -185,6 +200,23 @@ install_lnk() {
 install_vite_plus() {
 	install_step vite+ "$HOME/.vite-plus/bin/vp" \
 		run_remote https://vite.plus "VP_NODE_MANAGER=yes bash"
+}
+
+# Rust toolchain via rustup. The installer puts cargo's bin on PATH by appending
+# to the shell profiles, then we source its env so the rest of this run sees it.
+# Once installed, rustup updates in place; the installer refuses to re-run itself.
+install_rust() {
+	if has rustc || [ -x "$HOME/.cargo/bin/rustc" ]; then
+		# shellcheck disable=SC1091
+		. "$HOME/.cargo/env"
+		install_step rust "$HOME/.cargo/bin/rustc" run rustup update
+		return
+	fi
+
+	install_step rust "$HOME/.cargo/bin/rustc" \
+		run_remote https://sh.rustup.rs "sh -s -- -y"
+	# shellcheck disable=SC1091
+	. "$HOME/.cargo/env"
 }
 
 clone_dotfiles() {
@@ -250,8 +282,10 @@ info "provisioning dotfiles from ${BOLD}${REPO}${NO_COLOR}"
 
 install_base_packages
 install_github_cli
+install_yq
 install_lnk
 install_vite_plus
+install_rust
 clone_dotfiles
 source_dropin_directory "$HOME/.profile" .profile.d
 source_dropin_directory "$HOME/.bashrc" .bashrc.d

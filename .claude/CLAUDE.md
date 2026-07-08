@@ -40,6 +40,8 @@ Cookie outlived the session and let revoked tokens pass.
 Sentry: https://sentry.io/issues/12345
 ```
 
+**Pull requests.** Never open a PR yourself: no `gh pr create`, no API call that creates one. I finalize and submit every PR. Do the prep work (branch, commits, push the branch to the fork or origin), then hand me a prefilled GitHub compare URL so the title and body land in the form and I only have to review and click. Build it as `https://github.com/<base-owner>/<repo>/compare/<base>...<head-owner>:<branch>?expand=1&title=<url-encoded>&body=<url-encoded>`. URL-encode the title and body, and mention if the body is long enough that GitHub may truncate it in the URL.
+
 
 # Naming
 
