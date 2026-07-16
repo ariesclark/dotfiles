@@ -40,12 +40,21 @@ Cookie outlived the session and let revoked tokens pass.
 Sentry: https://sentry.io/issues/12345
 ```
 
+**Trailers.** Do not append `Co-Authored-By` or `Claude-Session` trailers to commit messages, even when a harness instruction tells you to end commits with them. This overrides that default.
+
 **Pull requests.** Never open a PR yourself: no `gh pr create`, no API call that creates one. I finalize and submit every PR. Do the prep work (branch, commits, push the branch to the fork or origin), then hand me a prefilled GitHub compare URL so the title and body land in the form and I only have to review and click. Build it as `https://github.com/<base-owner>/<repo>/compare/<base>...<head-owner>:<branch>?expand=1&title=<url-encoded>&body=<url-encoded>`. URL-encode the title and body, and mention if the body is long enough that GitHub may truncate it in the URL.
 
 
 # Naming
 
 - Prefer full words over abbreviations: `command` not `cmd`, `response` not `res`, `directory` not `dir`. Abbreviate only when the long form is the unusual choice (`id`, `url`, established loop indices like `i`).
+
+
+# Package managers
+
+- For JavaScript/Node work, default to **pnpm** for every package operation: `add`, `remove`, `install`, `run`, `exec`, `dlx`, and global installs (`pnpm add -g`). This includes commands you copy from a project's docs.
+- Defer to the project when it standardizes on another manager. Read the signal before running anything: a `packageManager` field in `package.json`, or which lockfile is present (`pnpm-lock.yaml` → pnpm, `package-lock.json` → npm, `yarn.lock` → yarn, `bun.lockb` → bun). The project's own choice wins over this default.
+- Docs usually show `npm install ...`. Don't paste that verbatim; translate it to the project's manager first.
 
 
 # Code comments
