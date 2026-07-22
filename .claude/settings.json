@@ -1,41 +1,29 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
-  "permissions": {
-    "allow": [
-      "Skill(humanizer)"
-    ]
+  "env": {
+    "DO_NOT_TRACK": "0"
   },
+  "enableArtifact": false,
   "statusLine": {
     "type": "command",
     "command": "/home/aries/.config/lnk/.claude/statusline.sh",
     "refreshInterval": 1
   },
   "enabledPlugins": {
-    "ask-questions-if-underspecified@trailofbits": true,
-    "modern-python@trailofbits": false,
-    "agentic-actions-auditor@trailofbits": true,
-    "audit-context-building@trailofbits": true,
-    "constant-time-analysis@trailofbits": true,
-    "differential-review@trailofbits": true,
-    "dimensional-analysis@trailofbits": true,
-    "insecure-defaults@trailofbits": true,
-    "fp-check@trailofbits": false,
-    "sharp-edges@trailofbits": true,
-    "skill-improver@trailofbits": false,
-    "static-analysis@trailofbits": true,
-    "supply-chain-risk-auditor@trailofbits": true,
-    "testing-handbook-skills@trailofbits": true,
-    "workflow-skill-design@trailofbits": true,
-    "variant-analysis@trailofbits": true,
     "plugin-dev@claude-plugins-official": true,
     "skill-creator@claude-plugins-official": true,
-    "ast-grep@ast-grep-marketplace": true,
     "claude-md-management@claude-plugins-official": true,
     "prior-art@ariesclark": true,
     "humanizer@ariesclark": true,
     "sentry-cli@claude-plugins-official": true,
     "guardrails@ariesclark": true,
-    "github@ariesclark": true
+    "github@ariesclark": true,
+    "rust-analyzer-lsp@claude-plugins-official": true,
+    "why@ariesclark": true,
+    "writing-skills@ariesclark": true,
+    "pulumi@pulumi-agent-skills": true,
+    "writing@ariesclark": true,
+    "papercuts@ariesclark": true
   },
   "extraKnownMarketplaces": {
     "cloudflare": {
@@ -51,29 +39,28 @@
         "repo": "ChromeDevTools/chrome-devtools-mcp"
       }
     },
-    "trailofbits": {
-      "source": {
-        "source": "github",
-        "repo": "trailofbits/skills"
-      },
-      "autoUpdate": true
-    },
-    "ast-grep-marketplace": {
-      "source": {
-        "source": "github",
-        "repo": "ast-grep/agent-skill"
-      }
-    },
     "ariesclark": {
       "source": {
         "source": "directory",
         "path": "/home/aries/skills"
       }
+    },
+    "ast-grep-marketplace": {
+      "source": {
+        "source": "git",
+        "url": "https://github.com/ast-grep/agent-skill.git"
+      }
+    },
+    "pulumi-agent-skills": {
+      "source": {
+        "source": "github",
+        "repo": "pulumi/agent-skills"
+      }
     }
   },
   "effortLevel": "medium",
+  "tui": "fullscreen",
   "skipWorkflowUsageWarning": true,
-  "verbose": true,
-  "remoteControlAtStartup": true,
-  "tui": "fullscreen"
+  "verbose": false,
+  "remoteControlAtStartup": true
 }
