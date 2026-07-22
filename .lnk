@@ -1,3 +1,4 @@
+.bashrc.d/aliases.sh
 .claude/CLAUDE.md
 .claude/settings.json
 .config/gh/config.yml
