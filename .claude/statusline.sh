@@ -136,16 +136,33 @@ format_limit() {
     "$C_MODEL" "$label" $'\033[38;2;'"${base_r};${base_g};${base_b}m" "$percent" "$RESET"
 }
 
+shorten_path() {
+  local path=$1 limit=$2 name
+  (( limit < 2 )) && { printf '…'; return; }
+  (( ${#path} <= limit )) && { printf '%s' "$path"; return; }
+
+  name=${path##*/}
+  if (( ${#name} + 2 <= limit )); then
+    printf '…/%s' "$name"
+  else
+    printf '…%s' "${name:$(( ${#name} - limit + 1 ))}"
+  fi
+}
+
 format_group() {
   local sigil=$1 color=$2; shift 2
   (( $# )) || return 0
 
-  local columns=${COLUMNS:-80} total=$# shown=0 width=${#sigil} files="" file reserve
+  local columns=${COLUMNS:-80} total=$# shown=0 width=${#sigil} files="" file reserve entry
   for file in "$@"; do
     reserve=0
     (( shown + 1 < total )) && reserve=10
-    (( shown > 0 && width + 1 + ${#file} + reserve > columns )) && break
-    files+=" $file"; width=$(( width + 1 + ${#file} )); (( ++shown ))
+    entry=$file
+    if (( width + 1 + ${#entry} + reserve > columns )); then
+      (( shown > 0 )) && break
+      entry=$(shorten_path "$entry" $(( columns - width - 1 - reserve )))
+    fi
+    files+=" $entry"; width=$(( width + 1 + ${#entry} )); (( ++shown ))
   done
 
   local line="${color}${sigil}${RESET}${files}"
