@@ -15,9 +15,7 @@ readonly BEL=$'\007'
 readonly SEPARATOR="  "
 readonly CONTEXT_ICON="●"
 readonly PULSE_LEVELS=(100 55)
-readonly BLANK_ROW=$'​'
-readonly CACHE_MAX_AGE=5
-readonly CACHE_SEPARATOR=$'\037'
+readonly BLANK_ROW=' '
 
 to_https() {
   local url=${1%.git}
@@ -25,6 +23,13 @@ to_https() {
 }
 
 home_relative() { printf '%s' "${1/#"$HOME"/'~'}"; }
+
+in_editor() {
+  [[ ${TERM_PROGRAM:-} == vscode ]] && return 0
+  [[ ${TERMINAL_EMULATOR:-} == *JetBrains* ]] && return 0
+  [[ ${PATH:-} == *.vscode-server/* ]] && return 0
+  return 1
+}
 
 git_toplevel="" git_remote="" git_status=""
 
@@ -37,26 +42,6 @@ collect_git_state() {
   git_remote=$(git -C "$directory" remote get-url origin 2>/dev/null || true)
   [[ -n "$git_remote" ]] && git_remote=$(to_https "$git_remote")
   git_status=$(git -C "$directory" -c core.quotePath=false status -b --porcelain 2>/dev/null || true)
-}
-
-restore_cache() {
-  local directory=$1 cache=$2 cache_mtime now cached_directory
-  [[ -f "$cache" ]] || return 1
-
-  printf -v now '%(%s)T' -1
-  cache_mtime=$(stat -c %Y "$cache" 2>/dev/null || stat -f %m "$cache" 2>/dev/null || echo 0)
-  (( now - cache_mtime <= CACHE_MAX_AGE )) || return 1
-
-  {
-    IFS=$CACHE_SEPARATOR read -r cached_directory git_toplevel git_remote || return 1
-    IFS= read -r -d '' git_status || true
-  } < "$cache"
-  [[ "$cached_directory" == "$directory" ]]
-}
-
-write_cache() {
-  printf '%s%s%s%s%s\n%s' \
-    "$1" "$CACHE_SEPARATOR" "$git_toplevel" "$CACHE_SEPARATOR" "$git_remote" "$git_status" > "$2"
 }
 
 format_dir() {
@@ -216,27 +201,24 @@ render() {
 }
 
 main() {
-  local input model current_directory used_tokens max_tokens session
+  local input model current_directory used_tokens max_tokens
   local five_hour_percent seven_day_percent
   IFS= read -r -d '' input || true
   IFS=$'\t' read -r model current_directory used_tokens max_tokens \
-    five_hour_percent seven_day_percent session < <(
+    five_hour_percent seven_day_percent < <(
     jq -r '[
       .model.display_name // "?",
       (.workspace.current_dir // .cwd),
       (.context_window.total_input_tokens // 0),
       (.context_window.context_window_size // 0),
       (.rate_limits.five_hour.used_percentage // -1 | round),
-      (.rate_limits.seven_day.used_percentage // -1 | round),
-      (.session_id // "nosession")
+      (.rate_limits.seven_day.used_percentage // -1 | round)
     ] | @tsv' <<<"$input"
   ) || true
 
-  local cache="/tmp/claude-statusline-${session}"
-  restore_cache "$current_directory" "$cache" || {
+  if ! in_editor; then
     collect_git_state "$current_directory"
-    write_cache "$current_directory" "$cache"
-  }
+  fi
 
   render "$model" "$current_directory" "$used_tokens" "$max_tokens" \
     "$five_hour_percent" "$seven_day_percent"
