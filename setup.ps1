@@ -28,14 +28,6 @@ function Install-OnePasswordCli {
 
     # Update through winget, not `op update`: the built-in updater is interactive and hangs
     # under non-interactive WSL interop. winget's --silent install/upgrade handles elevation.
-    if (-not (Test-Command winget)) {
-        if ($present) {
-            Write-Done "1Password ready ($(op --version)); no winget, skipping update"
-            return
-        }
-        Write-Fail "winget not found. install 'App Installer' from the Microsoft Store and re-run. manual install: https://www.1password.dev/cli/get-started"
-    }
-
     if ($present) {
         Write-Info "updating 1Password"
         winget upgrade --exact --id AgileBits.1Password.CLI --source winget `
@@ -56,4 +48,38 @@ function Install-OnePasswordCli {
     }
 }
 
+function Get-ShareXExecutable {
+    @($env:ProgramFiles, ${env:ProgramFiles(x86)}) |
+        Where-Object { $_ } |
+        ForEach-Object { Join-Path $_ 'ShareX\ShareX.exe' } |
+        Where-Object { Test-Path $_ } |
+        Select-Object -First 1
+}
+
+function Install-ShareX {
+    $executable = Get-ShareXExecutable
+
+    if ($executable) {
+        Write-Info "updating ShareX"
+        winget upgrade --exact --id ShareX.ShareX --source winget `
+            --accept-source-agreements --accept-package-agreements --silent
+    } else {
+        Write-Info "installing ShareX"
+        winget install --exact --id ShareX.ShareX --source winget `
+            --accept-source-agreements --accept-package-agreements --silent
+    }
+
+    $executable = Get-ShareXExecutable
+    if ($executable) {
+        Write-Done "ShareX ready ($executable) ♡"
+    } else {
+        Write-Fail "winget ran but ShareX.exe still not found (exit $LASTEXITCODE)"
+    }
+}
+
+if (-not (Test-Command winget)) {
+    Write-Fail "winget not found. install 'App Installer' from the Microsoft Store and re-run."
+}
+
 Install-OnePasswordCli
+Install-ShareX
