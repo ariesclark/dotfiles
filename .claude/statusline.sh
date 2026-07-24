@@ -16,6 +16,7 @@ readonly SEPARATOR="  "
 readonly CONTEXT_ICON="●"
 readonly PULSE_LEVELS=(100 55)
 readonly BLANK_ROW=' '
+readonly RESET_THRESHOLD=75
 
 to_https() {
   local url=${1%.git}
@@ -111,14 +112,42 @@ format_context() {
   fi
 }
 
+format_reset() {
+  local value=$1 target now remaining hours minutes
+  [[ -n "$value" && "$value" != '-' ]] || return 0
+
+  if [[ "$value" =~ ^[0-9]+$ ]]; then
+    target=$value
+  else
+    target=$(date -d "$value" +%s 2>/dev/null) || return 0
+  fi
+  [[ -n "$target" ]] || return 0
+
+  printf -v now '%(%s)T' -1
+  remaining=$(( target - now ))
+  (( remaining > 0 )) || return 0
+
+  hours=$(( remaining / 3600 )) minutes=$(( remaining % 3600 / 60 ))
+  if (( hours > 0 )); then
+    printf '%dh%02dm' "$hours" "$minutes"
+  else
+    printf '%dm' "$minutes"
+  fi
+}
+
 format_limit() {
-  local label=$1 percent=$2
+  local label=$1 percent=$2 resets_at=${3:-}
   (( percent >= 0 )) || return 0
 
   local base_r base_g base_b
   read -r base_r base_g base_b <<<"$(percent_rgb "$percent")"
-  printf '%s%s %s%d%%%s' \
-    "$C_MODEL" "$label" $'\033[38;2;'"${base_r};${base_g};${base_b}m" "$percent" "$RESET"
+
+  local reset=""
+  (( percent >= RESET_THRESHOLD )) && reset=$(format_reset "$resets_at")
+
+  printf '%s%s %s%d%%%s%s' \
+    "$C_MODEL" "$label" $'\033[38;2;'"${base_r};${base_g};${base_b}m" "$percent" "$RESET" \
+    "${reset:+ ${C_MODEL}(${reset})${RESET}}"
 }
 
 shorten_path() {
@@ -182,6 +211,7 @@ render_status() {
 render() {
   local model=$1 current_directory=$2 used_tokens=$3 max_tokens=$4
   local five_hour_percent=$5 seven_day_percent=$6
+  local five_hour_resets=$7 seven_day_resets=$8
   local branch; branch=$(status_branch)
   local summary="" segment
   for segment in \
@@ -189,8 +219,8 @@ render() {
     "${branch:+${C_BRANCH}${branch}${RESET}}" \
     "${C_MODEL}${model}${RESET}" \
     "$(format_context "$used_tokens" "$max_tokens")" \
-    "$(format_limit '5h' "$five_hour_percent")" \
-    "$(format_limit '7d' "$seven_day_percent")"
+    "$(format_limit '5h' "$five_hour_percent" "$five_hour_resets")" \
+    "$(format_limit '7d' "$seven_day_percent" "$seven_day_resets")"
   do
     [[ -n "$segment" ]] && summary+="${summary:+$SEPARATOR}$segment"
   done
@@ -202,17 +232,19 @@ render() {
 
 main() {
   local input model current_directory used_tokens max_tokens
-  local five_hour_percent seven_day_percent
+  local five_hour_percent seven_day_percent five_hour_resets seven_day_resets
   IFS= read -r -d '' input || true
   IFS=$'\t' read -r model current_directory used_tokens max_tokens \
-    five_hour_percent seven_day_percent < <(
+    five_hour_percent seven_day_percent five_hour_resets seven_day_resets < <(
     jq -r '[
       .model.display_name // "?",
       (.workspace.current_dir // .cwd),
       (.context_window.total_input_tokens // 0),
       (.context_window.context_window_size // 0),
       (.rate_limits.five_hour.used_percentage // -1 | round),
-      (.rate_limits.seven_day.used_percentage // -1 | round)
+      (.rate_limits.seven_day.used_percentage // -1 | round),
+      (.rate_limits.five_hour.resets_at // "-"),
+      (.rate_limits.seven_day.resets_at // "-")
     ] | @tsv' <<<"$input"
   ) || true
 
@@ -221,7 +253,7 @@ main() {
   fi
 
   render "$model" "$current_directory" "$used_tokens" "$max_tokens" \
-    "$five_hour_percent" "$seven_day_percent"
+    "$five_hour_percent" "$seven_day_percent" "$five_hour_resets" "$seven_day_resets"
 }
 
 main
