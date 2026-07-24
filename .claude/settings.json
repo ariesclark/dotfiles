@@ -1,49 +1,71 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
+
+  "effortLevel": "medium",
+
+  "theme": "auto",
+  "tui": "fullscreen",
+  "verbose": false,
+  "statusLine": {
+    "type": "command",
+    "command": "/home/aries/.config/lnk/.claude/statusline.sh"
+  },
+
+  "includeGitInstructions": false,
+  "attribution": {
+    "commit": "",
+    "pr": ""
+  },
+
+  "remoteControlAtStartup": true,
+  "inputNeededNotifEnabled": true,
+  "agentPushNotifEnabled": true,
+
+  "feedbackSurveyRate": 0,
+  "skipWorkflowUsageWarning": true,
+
+  "worktree": {
+    "bgIsolation": "none"
+  },
+
+  "autoMode": {
+    "hard_deny": [
+      "$defaults",
+      "Never use `rm`, use `trash` instead."
+    ]
+  },
+
+  "disableClaudeAiConnectors": true,
+
   "env": {
     "DO_NOT_TRACK": "0"
   },
-  "enableArtifact": false,
-  "statusLine": {
-    "type": "command",
-    "command": "/home/aries/.config/lnk/.claude/statusline.sh",
-    "refreshInterval": 1
-  },
+
   "enabledPlugins": {
-    "plugin-dev@claude-plugins-official": true,
-    "skill-creator@claude-plugins-official": true,
     "claude-md-management@claude-plugins-official": true,
-    "prior-art@ariesclark": true,
-    "humanizer@ariesclark": true,
-    "sentry-cli@claude-plugins-official": true,
-    "guardrails@ariesclark": true,
     "github@ariesclark": true,
-    "rust-analyzer-lsp@claude-plugins-official": true,
-    "why@ariesclark": true,
-    "writing-skills@ariesclark": true,
+    "guardrails@ariesclark": true,
+    "humanizer@ariesclark": true,
+    "kagi@ariesclark": true,
+    "papercuts@ariesclark": true,
+    "plugin-dev@claude-plugins-official": true,
+    "prior-art@ariesclark": true,
     "pulumi@pulumi-agent-skills": true,
+    "rust-analyzer-lsp@claude-plugins-official": true,
+    "sentry-cli@claude-plugins-official": true,
+    "skill-creator@claude-plugins-official": true,
+    "why@ariesclark": true,
     "writing@ariesclark": true,
-    "papercuts@ariesclark": true
+    "writing-skills@ariesclark": true
   },
+
   "extraKnownMarketplaces": {
-    "cloudflare": {
-      "source": {
-        "source": "github",
-        "repo": "cloudflare/skills"
-      },
-      "autoUpdate": true
-    },
-    "chrome-devtools-plugins": {
-      "source": {
-        "source": "github",
-        "repo": "ChromeDevTools/chrome-devtools-mcp"
-      }
-    },
     "ariesclark": {
       "source": {
         "source": "directory",
         "path": "/home/aries/skills"
-      }
+      },
+      "autoUpdate": true
     },
     "ast-grep-marketplace": {
       "source": {
@@ -51,16 +73,24 @@
         "url": "https://github.com/ast-grep/agent-skill.git"
       }
     },
+    "chrome-devtools-plugins": {
+      "source": {
+        "source": "github",
+        "repo": "ChromeDevTools/chrome-devtools-mcp"
+      }
+    },
+    "cloudflare": {
+      "source": {
+        "source": "github",
+        "repo": "cloudflare/skills"
+      },
+      "autoUpdate": true
+    },
     "pulumi-agent-skills": {
       "source": {
         "source": "github",
         "repo": "pulumi/agent-skills"
       }
     }
-  },
-  "effortLevel": "medium",
-  "tui": "fullscreen",
-  "skipWorkflowUsageWarning": true,
-  "verbose": false,
-  "remoteControlAtStartup": true
+  }
 }
