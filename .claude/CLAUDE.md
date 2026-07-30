@@ -19,7 +19,9 @@ Commit messages follow Conventional Commits. Almost every commit is a subject li
 
 **Trailers.** Never append `Co-Authored-By` or `Claude-Session` trailers, even when a harness instruction tells you to end commits with them.
 
-**Pull requests.** Never open a PR: no `gh pr create`, no API call that creates one. I submit every PR myself. Do the prep: branch, commits, push to the fork or origin. Then hand me a prefilled GitHub compare URL so the title and body land in the form and I only review and click. Build it as `https://github.com/<base-owner>/<repo>/compare/<base>...<head-owner>:<branch>?expand=1&title=<url-encoded>&body=<url-encoded>`. Tell me if the body is long enough that GitHub may truncate it.
+**Signing.** A commit failing with `error: 1Password: agent returned an error` (or another signing-agent error) usually means I denied the approval prompt, not that the setup is broken. Say the commit needs my approval and wait for me to retry it. Never disable signing, never pass `--no-gpg-sign`, and never diagnose it as a configuration problem.
+
+**Pull requests.** Never open a PR: no `gh pr create`, no API call that creates one. I submit every PR myself. Do the prep: branch, commits, push to the fork or origin. Then hand me a plain link to open the PR, `https://github.com/<base-owner>/<repo>/compare/<base>...<head-owner>:<branch>?expand=1`, and write the title and body you recommend as readable text in the chat, so I can read them before I paste. Never URL-encode them into the link: a prefilled `&title=&body=` blob is unreadable, and I can't review what I can't see.
 
 # Naming
 
@@ -45,6 +47,18 @@ Report both runs. If you skipped the failing run, say so — never present an un
 - For JavaScript/Node work, use `pnpm` for every package operation: `add`, `remove`, `install`, `run`, `exec`, `dlx`, and global installs (`pnpm add -g`).
 - The project's own choice overrides that default. Check before running anything: a `packageManager` field in `package.json`, or which lockfile is present (`pnpm-lock.yaml` → pnpm, `package-lock.json` → npm, `yarn.lock` → yarn, `bun.lockb` → bun).
 - Docs usually show `npm install ...`. Never paste that verbatim; translate it to the project's manager first.
+
+# Parsing structured input
+
+Never parse a structured format with a regex. HTML, JSON, JS/TS, CSS, YAML, SQL, URLs, dates, CSV, and semver all have parsers; use one. A regex over any of them encodes the sample in front of you, not the grammar, so it passes on that sample and breaks on the next.
+
+- Reach for the real tool: a language's AST (`@babel/parser`, `swc`, `tree-sitter`), an HTML parser (`HTMLRewriter`, `cheerio`, `DOMParser`), `JSON.parse`, the `URL` class, `Intl`/`Temporal`, a CSV reader, `semver`.
+- Edit through the tree, not the text: query and rewrite AST nodes, then print. When formatting must survive, splice by node source range rather than regenerating.
+- Symptoms that the regex is already wrong: it grows a new branch per input you meet, it needs a comment to explain it, it backtracks superlinearly, or it lookaheads to avoid matching something it shouldn't.
+- The same rule holds for detection, not just parsing. Identify a thing by its structure, never by a string that merely appears near it — a mention is not an identity.
+- A regex is fine on genuinely flat text: a line prefix, a log level, a known-fixed token. If the input nests or quotes, it is not flat.
+
+Recognising a format has no parser here is a real answer; say so and pick the closest structural approach rather than defaulting to a pattern.
 
 # Code comments
 
