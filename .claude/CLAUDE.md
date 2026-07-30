@@ -25,6 +25,21 @@ Commit messages follow Conventional Commits. Almost every commit is a subject li
 
 - Write full words, not abbreviations: `command` not `cmd`, `response` not `res`, `directory` not `dir`. Abbreviate only where nobody writes the long form (`id`, `url`, loop indices like `i`).
 
+# Tests
+
+Write the test first, always — for a new feature, a bug fix, or a change to existing behaviour.
+
+1. Write a test asserting the behaviour you want after the change.
+2. Run it and watch it fail against the current code. A test that passes before the change tests nothing; work out why and fix the test rather than moving on.
+3. Only then write the implementation, and run the test again to watch it pass.
+
+Report both runs. If you skipped the failing run, say so — never present an untested change as verified.
+
+- Never weaken a test to make it pass. When it fails after the implementation, the code is wrong until proven otherwise.
+- Assert the specific value, not that something is truthy or merely defined.
+- Cover the negative too: the input that must be rejected, the branch that must not be taken, the error that must be raised.
+- For a mutation, read the state back and assert it changed, rather than trusting the call's own success.
+
 # Package managers
 
 - For JavaScript/Node work, use `pnpm` for every package operation: `add`, `remove`, `install`, `run`, `exec`, `dlx`, and global installs (`pnpm add -g`).
