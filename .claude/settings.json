@@ -1,52 +1,42 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
-
-  "effortLevel": "medium",
-
-  "theme": "auto",
-  "tui": "fullscreen",
-  "verbose": false,
+  "env": {
+    "DO_NOT_TRACK": "0"
+  },
+  "attribution": {
+    "commit": "",
+    "pr": "",
+    "sessionUrl": false
+  },
+  "includeGitInstructions": false,
+  "permissions": {
+    "allow": [
+      "Bash(git add:*)"
+    ],
+    "deny": [
+      "Read(*.env)",
+      "Bash(rm:*)",
+      "Bash(gh pr create:*)",
+      "WebFetch",
+      "WebSearch"
+    ],
+    "ask": [
+      "Bash(git push:*)"
+    ],
+    "defaultMode": "auto"
+  },
+  "disableClaudeAiConnectors": true,
+  "worktree": {
+    "bgIsolation": "none"
+  },
   "statusLine": {
     "type": "command",
     "command": "/home/aries/.config/lnk/.claude/statusline.sh"
   },
-
-  "includeGitInstructions": false,
-  "attribution": {
-    "commit": "",
-    "pr": ""
-  },
-
-  "remoteControlAtStartup": true,
-  "inputNeededNotifEnabled": true,
-  "agentPushNotifEnabled": true,
-
-  "feedbackSurveyRate": 0,
-  "skipWorkflowUsageWarning": true,
-
-  "worktree": {
-    "bgIsolation": "none"
-  },
-
-  "autoMode": {
-    "hard_deny": [
-      "$defaults",
-      "Never use `rm`, use `trash` instead."
-    ]
-  },
-
-  "disableClaudeAiConnectors": true,
-
-  "env": {
-    "DO_NOT_TRACK": "0"
-  },
-
   "enabledPlugins": {
     "claude-md-management@claude-plugins-official": true,
     "github@ariesclark": true,
     "guardrails@ariesclark": true,
-    "humanizer@ariesclark": true,
-    "kagi@ariesclark": true,
     "papercuts@ariesclark": true,
     "plugin-dev@claude-plugins-official": true,
     "prior-art@ariesclark": true,
@@ -56,9 +46,8 @@
     "skill-creator@claude-plugins-official": true,
     "why@ariesclark": true,
     "writing@ariesclark": true,
-    "writing-skills@ariesclark": true
+    "kagi@kagi-cli": true
   },
-
   "extraKnownMarketplaces": {
     "ariesclark": {
       "source": {
@@ -91,6 +80,31 @@
         "source": "github",
         "repo": "pulumi/agent-skills"
       }
+    },
+    "kagi-cli": {
+      "source": {
+        "source": "directory",
+        "path": "/home/aries/kagi-cli"
+      }
     }
+  },
+  "feedbackSurveyRate": 0,
+  "effortLevel": "medium",
+  "tui": "fullscreen",
+  "skipWorkflowUsageWarning": true,
+  "theme": "auto",
+  "verbose": false,
+  "remoteControlAtStartup": true,
+  "inputNeededNotifEnabled": true,
+  "agentPushNotifEnabled": true,
+  "autoMode": {
+    "hard_deny": [
+      "$defaults",
+      "Never use `rm`, use `trash` instead.",
+      "Never write a scratch file to a bare path in a system temp directory, and never write one outside the session scratch directory. Scratch goes in `.claude/tmp/<friendly-name>/`, which is a symlink to a `mktemp -d -t \"<friendly-name>.XXXXXX\"` directory, so the work stays visible in the user's editor. Creating that directory and writing inside it is expected; writing to `/tmp/<file>` directly is not.",
+      "Never edit a tracked config file at its symlink target under `~`. Edit it in the `~/.config/lnk` repo instead.",
+      "Never disable or bypass git commit signing: no `--no-gpg-sign`, no `-c commit.gpgsign=false`, no `git config` write that turns signing off.",
+      "Never create a pull request. This covers `gh pr create` and any equivalent API call, such as `gh api` or `curl` POSTing to a `/pulls` endpoint."
+    ]
   }
 }
