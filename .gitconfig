@@ -16,6 +16,8 @@
 	gpgsign = true
 [include]
 	path = ~/.wsl.gitconfig
+[init]
+	defaultBranch = main
 [rebase]
 	autoStash = true
 [pull]
