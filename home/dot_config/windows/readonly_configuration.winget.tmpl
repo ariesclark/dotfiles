@@ -62,6 +62,18 @@ properties:
         Force: true
 
     - resource: PSDscResources/Registry
+      id: chromiumAiMode
+      directives:
+        description: No AI Mode button in Chromium
+        securityContext: elevated
+      settings:
+        Key: HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Chromium
+        ValueName: AIModeSettings
+        ValueType: Dword
+        ValueData: '1'
+        Force: true
+
+    - resource: PSDscResources/Registry
       id: chromiumUblock
       directives:
         description: uBlock Origin Lite in Chromium
