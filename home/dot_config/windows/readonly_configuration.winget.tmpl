@@ -38,6 +38,18 @@ properties:
         Force: true
 
     - resource: PSDscResources/Registry
+      id: chromiumSignin
+      directives:
+        description: No Google sign-in or sync in Chromium
+        securityContext: elevated
+      settings:
+        Key: HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Chromium
+        ValueName: BrowserSignin
+        ValueType: Dword
+        ValueData: '0'
+        Force: true
+
+    - resource: PSDscResources/Registry
       id: startLayoutFile
       directives:
         description: Taskbar pins from taskbar.xml, machine-wide

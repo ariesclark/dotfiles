@@ -10,7 +10,8 @@ groups:
       - scoop:main/pwsh
       - scoop:main/1password-cli
       - scoop:extras/powertoys
-      - scoop:extras/chrome
+      - scoop:extras/firefox
+      - scoop:extras/chromium
       - scoop:extras/vlc
       - scoop:extras/imageglass
       - winget:AgileBits.1Password
@@ -57,6 +58,8 @@ groups:
       - base
     apps:
       - scoop:extras/vscode
+      - scoop:versions/firefox-developer
+      - scoop:versions/firefox-nightly
       - scoop:main/uv
       - scoop:main/pester
       - scoop:main/dotnet-sdk
