@@ -33,6 +33,23 @@ apps:
       - install-context.reg
       - install-associations.reg
       - install-github-integration.reg
+    shortcuts:
+      - name: Visual Studio Code
+        path: Code.exe
+        appId: Microsoft.VisualStudioCode.Portable
+
+  scoop:extras/chromium:
+    shortcuts:
+      - name: Chromium
+        path: chrome.exe
+        arguments: --user-data-dir="E:\Scoop\apps\chromium\current\User Data" --disable-features=SessionRestoreInfobar,EnableNtpBrowserPromos --no-default-browser-check
+        appId: Chromium.H4FX3KY3YMMTY7OOGOGY2E.UserData.Default
+
+  scoop:versions/firefox-nightly:
+    shortcuts:
+      - name: Firefox Nightly
+        path: firefox.exe
+        appId: 7DB6B795FC84A795
 
   scoop:extras/sharex:
     mounts:

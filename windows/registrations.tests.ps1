@@ -12,6 +12,8 @@ Describe 'Get-RegistrationPlan' {
 				"protocols": [{ "name": "steam", "path": "steam.exe", "arguments": "-- \"%1\"" }]
 			},
 			"scoop:main/pwsh": { "shims": [{ "name": "pwsh", "directory": "%LOCALAPPDATA%\\Microsoft\\WindowsApps" }] },
+			"scoop:extras/chromium": { "shortcuts": [{ "name": "Chromium", "path": "chrome.exe", "arguments": "--no-default-browser-check", "appId": "Chromium.Default" }] },
+			"scoop:versions/firefox-nightly": { "shortcuts": [{ "name": "Firefox Nightly", "path": "firefox.exe" }] },
 			"winget:Discord.Discord": { "fixedLocation": true }
 		}' | ConvertFrom-Json
 	}
@@ -61,6 +63,24 @@ Describe 'Get-RegistrationPlan' {
 		$plan[0].Kind | Should -BeExactly 'shim'
 		$plan[0].Path | Should -BeExactly 'E:\Scoop\shims\pwsh'
 		$plan[0].Value | Should -BeExactly (Join-Path $env:LOCALAPPDATA 'Microsoft\WindowsApps')
+	}
+
+	It 'places shortcuts in the Start menu, pointing into the app''s current folder' {
+		$plan = @(Get-RegistrationPlan -Apps $apps -Installed @('chromium') -ScoopRoot 'E:\Scoop')
+
+		$plan.Count | Should -Be 1
+		$plan[0].Kind | Should -BeExactly 'shortcut'
+		$plan[0].Path | Should -BeExactly (Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\Chromium.lnk')
+		$plan[0].Target | Should -BeExactly 'E:\Scoop\apps\chromium\current\chrome.exe'
+		$plan[0].Arguments | Should -BeExactly '--no-default-browser-check'
+		$plan[0].AppId | Should -BeExactly 'Chromium.Default'
+	}
+
+	It 'gives a shortcut with no arguments or app id empty ones' {
+		$plan = @(Get-RegistrationPlan -Apps $apps -Installed @('firefox-nightly') -ScoopRoot 'E:\Scoop')
+
+		$plan[0].Arguments | Should -BeExactly ''
+		$plan[0].AppId | Should -BeExactly ''
 	}
 }
 

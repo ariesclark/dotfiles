@@ -97,7 +97,7 @@ Describe 'apps.yaml' {
 	It 'only uses known keys, and never empty' {
 		foreach ($app in $apps.PSObject.Properties) {
 			@($app.Value.PSObject.Properties).Count | Should -BeGreaterThan 0 -Because $app.Name
-			$app.Value.PSObject.Properties.Name | Where-Object { $_ -notin 'removeAppx', 'registry', 'scripts', 'startup', 'shims', 'protocols', 'mounts', 'location', 'installerType', 'fixedLocation' } | Should -BeNullOrEmpty -Because $app.Name
+			$app.Value.PSObject.Properties.Name | Where-Object { $_ -notin 'removeAppx', 'registry', 'scripts', 'startup', 'shims', 'shortcuts', 'protocols', 'mounts', 'location', 'installerType', 'fixedLocation' } | Should -BeNullOrEmpty -Because $app.Name
 			$app.Value.PSObject.Properties | Where-Object { @($_.Value).Count -eq 0 } | Should -BeNullOrEmpty -Because $app.Name
 		}
 	}

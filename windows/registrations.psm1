@@ -1,6 +1,7 @@
 Set-StrictMode -Version Latest
 
 Import-Module (Join-Path $PSScriptRoot 'scoop.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'shortcuts.psm1')
 
 function Get-ListProperty {
 	param([object] $Object, [string] $Key)
@@ -51,6 +52,18 @@ function Get-RegistrationPlan {
 		}
 		foreach ($shim in (Get-ListProperty -Object $entry.Value -Key 'shims')) {
 			[pscustomobject]@{ Kind = 'shim'; App = $entry.Name; Name = $shim.name; Path = (Join-Path $ScoopRoot "shims\$($shim.name)"); Value = [Environment]::ExpandEnvironmentVariables($shim.directory) }
+		}
+		foreach ($shortcut in (Get-ListProperty -Object $entry.Value -Key 'shortcuts')) {
+			[pscustomobject]@{
+				Kind = 'shortcut'
+				App = $entry.Name
+				Name = $shortcut.name
+				Path = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\$($shortcut.name).lnk"
+				Value = $null
+				Target = & $resolve $shortcut.path
+				Arguments = "$(Get-ListProperty -Object $shortcut -Key 'arguments')"
+				AppId = "$(Get-ListProperty -Object $shortcut -Key 'appId')"
+			}
 		}
 	}
 }
@@ -129,6 +142,9 @@ function Invoke-RegistrationPlan {
 					Copy-Item -LiteralPath "$($step.Path).exe" -Destination $executable
 				}
 				Copy-Item -LiteralPath "$($step.Path).shim" -Destination (Join-Path $step.Value "$($step.Name).shim") -Force
+			}
+			'shortcut' {
+				Sync-Shortcut -Path $step.Path -Target $step.Target -Arguments $step.Arguments -AppId $step.AppId
 			}
 		}
 	}

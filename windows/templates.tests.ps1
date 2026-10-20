@@ -85,11 +85,25 @@ Describe 'taskbar.xml' {
 	}
 
 	It 'pins its apps in order, by the right kind of id' {
-		$pins.Count | Should -Be 6
-		$pins[0].DesktopApplicationID | Should -BeExactly 'Microsoft.Windows.Explorer'
-		$pins[1].LocalName | Should -BeExactly 'UWA'
-		$pins[1].AppUserModelID | Should -BeExactly 'Claude_pzs8sxrjxfjjc!Claude'
-		$pins[2].DesktopApplicationLinkPath | Should -BeLike '*\Task Manager.lnk'
+		$identities = $pins | ForEach-Object {
+			switch ($_) {
+				{ $_.LocalName -eq 'UWA' } { "uwa:$($_.AppUserModelID)"; break }
+				{ $_.HasAttribute('DesktopApplicationID') } { "id:$($_.DesktopApplicationID)"; break }
+				default { "link:$($_.DesktopApplicationLinkPath)" }
+			}
+		}
+
+		$identities | Should -BeExactly @(
+			'link:%APPDATA%\Microsoft\Windows\Start Menu\Programs\Firefox.lnk'
+			'id:com.squirrel.Discord.Discord'
+			'link:%APPDATA%\Microsoft\Windows\Start Menu\Programs\Visual Studio Code.lnk'
+			'id:Microsoft.Windows.Explorer'
+			'uwa:Claude_pzs8sxrjxfjjc!Claude'
+			'link:%ALLUSERSPROFILE%\Microsoft\Windows\Start Menu\Programs\System Tools\Task Manager.lnk'
+			'link:%APPDATA%\Microsoft\Windows\Start Menu\Programs\Chromium.lnk'
+			'link:%APPDATA%\Microsoft\Windows\Start Menu\Programs\Firefox Developer Edition.lnk'
+			'link:%APPDATA%\Microsoft\Windows\Start Menu\Programs\Firefox Nightly.lnk'
+		)
 	}
 }
 
