@@ -50,16 +50,30 @@ properties:
         Force: true
 
     - resource: PSDscResources/Registry
-      id: chromiumEphemeral
+      id: chromiumSync
       directives:
-        description: Chromium deletes its profile when it closes
+        description: No sync in Chromium, which clearing data on exit needs
         securityContext: elevated
       settings:
         Key: HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Chromium
-        ValueName: ForceEphemeralProfiles
+        ValueName: SyncDisabled
         ValueType: Dword
         ValueData: '1'
         Force: true
+{{- range $index, $type := list "browsing_history" "download_history" "cookies_and_other_site_data" "cached_images_and_files" "password_signin" "autofill" "site_settings" "hosted_app_data" }}
+
+    - resource: PSDscResources/Registry
+      id: chromiumClearOnExit{{ add $index 1 }}
+      directives:
+        description: Chromium deletes {{ $type }} when it closes
+        securityContext: elevated
+      settings:
+        Key: HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Chromium\ClearBrowsingDataOnExitList
+        ValueName: '{{ add $index 1 }}'
+        ValueType: String
+        ValueData: {{ $type }}
+        Force: true
+{{- end }}
 
     - resource: PSDscResources/Registry
       id: chromiumAiMode
@@ -81,18 +95,6 @@ properties:
       settings:
         Key: HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Chromium
         ValueName: PromotionsEnabled
-        ValueType: Dword
-        ValueData: '0'
-        Force: true
-
-    - resource: PSDscResources/Registry
-      id: chromiumNewTabCards
-      directives:
-        description: No cards on Chromium's new tab page
-        securityContext: elevated
-      settings:
-        Key: HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Chromium
-        ValueName: NTPCardsVisible
         ValueType: Dword
         ValueData: '0'
         Force: true
