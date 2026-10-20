@@ -74,6 +74,30 @@ properties:
         Force: true
 
     - resource: PSDscResources/Registry
+      id: chromiumPromotions
+      directives:
+        description: No promotions in Chromium, like the sign-in button
+        securityContext: elevated
+      settings:
+        Key: HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Chromium
+        ValueName: PromotionsEnabled
+        ValueType: Dword
+        ValueData: '0'
+        Force: true
+
+    - resource: PSDscResources/Registry
+      id: chromiumNewTabCards
+      directives:
+        description: No cards on Chromium's new tab page
+        securityContext: elevated
+      settings:
+        Key: HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Chromium
+        ValueName: NTPCardsVisible
+        ValueType: Dword
+        ValueData: '0'
+        Force: true
+
+    - resource: PSDscResources/Registry
       id: chromiumUblock
       directives:
         description: uBlock Origin Lite in Chromium
