@@ -1,0 +1,4 @@
+{{- /* An app's JSON settings file (current) with values merged over it: ours win, the app's other keys stay. */ -}}
+{{- $current := dict -}}
+{{- if .current }}{{ $current = fromJson .current }}{{ end -}}
+{{- mergeOverwrite $current (deepCopy .values) | toPrettyJson }}

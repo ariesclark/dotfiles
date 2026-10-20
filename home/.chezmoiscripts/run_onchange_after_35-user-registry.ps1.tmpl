@@ -1,0 +1,9 @@
+{{ if eq .chezmoi.os "windows" -}}
+# reruns when either rendered file changes: {{ includeTemplate "dot_config/windows/user.reg.tmpl" . | sha256sum }} {{ includeTemplate "dot_config/windows/taskbar.xml.tmpl" . | sha256sum }}
+$ErrorActionPreference = 'Stop'
+Import-Module '{{ joinPath .chezmoi.workingTree "windows" "taskbar.psm1" }}' -Force
+reg import '{{ joinPath .chezmoi.homeDir ".config" "windows" "user.reg" }}' 2>&1 | Out-Null
+Set-StartLayoutPolicy -Path '{{ joinPath .chezmoi.homeDir ".config" "windows" "taskbar.xml" }}'
+# Explorer only reads the taskbar settings and layout when it starts.
+Stop-Process -Name explorer -Force -ErrorAction SilentlyContinue
+{{ end -}}

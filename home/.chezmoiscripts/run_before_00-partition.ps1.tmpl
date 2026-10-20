@@ -1,0 +1,8 @@
+{{ if eq .chezmoi.os "windows" -}}
+$ErrorActionPreference = 'Stop'
+Import-Module '{{ joinPath .chezmoi.workingTree "windows" "volumes.psm1" }}' -Force
+$layout = @'
+{{ (pick .layout "system" "volumes") | toJson }}
+'@ | ConvertFrom-Json
+Sync-Partition -Layout $layout -OptedIn ${{ .machine.partition }}
+{{ end -}}

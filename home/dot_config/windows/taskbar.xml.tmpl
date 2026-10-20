@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+{{ includeTemplate "generated" . }}
+<LayoutModificationTemplate xmlns="http://schemas.microsoft.com/Start/2014/LayoutModification" xmlns:defaultlayout="http://schemas.microsoft.com/Start/2014/FullDefaultLayout" xmlns:start="http://schemas.microsoft.com/Start/2014/StartLayout" xmlns:taskbar="http://schemas.microsoft.com/Start/2014/TaskbarLayout" Version="1">
+  <CustomTaskbarLayoutCollection PinListPlacement="Replace">
+    <defaultlayout:TaskbarLayout>
+      <taskbar:TaskbarPinList>
+{{- range .desktop.taskbar.pins }}
+{{-   $value := . | replace "&" "&amp;" | replace "\"" "&quot;" | replace "<" "&lt;" }}
+{{-   if hasSuffix ".lnk" . }}
+        <taskbar:DesktopApp DesktopApplicationLinkPath="{{ $value }}" />
+{{-   else if contains "!" . }}
+        <taskbar:UWA AppUserModelID="{{ $value }}" />
+{{-   else }}
+        <taskbar:DesktopApp DesktopApplicationID="{{ $value }}" />
+{{-   end }}
+{{- end }}
+      </taskbar:TaskbarPinList>
+    </defaultlayout:TaskbarLayout>
+  </CustomTaskbarLayoutCollection>
+</LayoutModificationTemplate>

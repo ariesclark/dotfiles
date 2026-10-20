@@ -1,0 +1,6 @@
+{{- /* One sha256 of every file matching the glob passed in, e.g. {{ template "glob-hash" "C:/repo/windows/*.psm1" }} */ -}}
+{{- $contents := "" -}}
+{{- range glob . -}}
+{{-   $contents = print $contents (include .) -}}
+{{- end -}}
+{{- $contents | sha256sum -}}

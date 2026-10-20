@@ -1,0 +1,89 @@
+groups:
+  base:
+    apps:
+      - scoop:main/7zip
+      - scoop:main/git
+      - scoop:main/gh
+      - scoop:main/chezmoi
+      - scoop:main/restic
+      - scoop:main/jq
+      - scoop:main/pwsh
+      - scoop:main/1password-cli
+      - scoop:extras/powertoys
+      - scoop:extras/firefox
+      - scoop:extras/vlc
+      - scoop:extras/imageglass
+      - winget:AgileBits.1Password
+      - winget:Anthropic.Claude
+      - msstore:9P8LTPGCBZXD # Wintoys
+
+  personal:
+    needs:
+      - base
+    apps:
+      - winget:Discord.Discord
+      - scoop:extras/sharex
+      - scoop:extras/protonmail-bridge
+      - winget:Cloudflare.Warp
+
+  tools:
+    needs:
+      - base
+    apps:
+      - scoop:extras/hwinfo
+      - scoop:extras/crystaldiskmark
+      - scoop:extras/windirstat
+
+  games-base: # launchers that games install through
+    needs:
+      - base
+    apps:
+      - scoop:games/steam
+      - scoop:games/minecraft
+      - winget:Overwolf.CurseForge
+
+  games:
+    needs:
+      - games-base
+    apps:
+      - winget:RiotGames.LeagueOfLegends.NA
+      - winget:RiotGames.Valorant.NA
+      - steam:431960 # Wallpaper Engine
+      - steam:1086940 # Baldur's Gate 3
+      - steam:578080 # PUBG: Battlegrounds
+
+  dev:
+    needs:
+      - base
+    apps:
+      - scoop:extras/vscode
+      - scoop:main/uv
+      - scoop:main/pester
+      - scoop:main/dotnet-sdk
+      - scoop:main/ffmpeg
+      - scoop:extras/winscp
+      - scoop:extras/mongodb-compass
+
+  unity:
+    needs:
+      - dev
+
+  security:
+    needs:
+      - dev
+
+  hardware:
+    needs:
+      - dev
+
+  vrchat:
+    needs:
+      - games-base
+    apps:
+      - steam:438100 # VRChat
+      - scoop:extras/vrcx
+
+  vrchat-dev:
+    needs:
+      - vrchat
+      - unity

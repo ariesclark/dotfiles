@@ -1,0 +1,77 @@
+apps:
+  scoop:main/7zip:
+    registry:
+      - install-context.reg
+
+  scoop:main/git:
+    registry:
+      - install-context.reg
+      - install-associations.reg
+
+  scoop:main/pwsh:
+    registry:
+      - install-explorer-context.reg
+      - install-file-context.reg
+    shims:
+      - name: pwsh
+        directory: '%LOCALAPPDATA%\Microsoft\WindowsApps' # where Claude Code's shell looks for pwsh
+
+  scoop:extras/powertoys:
+    removeAppx:
+      - Microsoft.PowerToys.*ContextMenu
+    scripts:
+      - path: install-context.ps1
+        skipWhenRegistered:
+          - WinUI3Apps\ImageResizerContextMenuPackage.msix
+          - WinUI3Apps\PowerRenameContextMenuPackage.msix
+    startup:
+      - name: PowerToys
+        path: PowerToys.exe
+
+  scoop:extras/vscode:
+    registry:
+      - install-context.reg
+      - install-associations.reg
+      - install-github-integration.reg
+
+  scoop:extras/sharex:
+    startup:
+      - name: ShareX
+        path: ShareX.exe
+        arguments: -silent
+
+  scoop:extras/protonmail-bridge:
+    startup:
+      - name: ProtonMailBridge
+        path: proton-bridge.exe
+        arguments: --no-window
+
+  scoop:games/steam:
+    protocols:
+      - name: steam
+        path: steam.exe
+        arguments: -- "%1"
+    startup:
+      - name: Steam
+        path: steam.exe
+        arguments: -silent
+      - name: WallpaperEngine
+        path: 'E:\Games\Steam\common\wallpaper_engine\wallpaper64.exe'
+        arguments: -silent
+
+  # winget apps install to layout.winget\<id> unless they say otherwise here.
+  # MSIX packages can't take a folder: Windows keeps them in C:\Program Files\WindowsApps, with the Store apps.
+  winget:AgileBits.1Password:
+    installerType: msix # neither installer can leave C:, and the MSIX keeps itself updated
+
+  winget:Anthropic.Claude:
+    installerType: msix
+
+  winget:Discord.Discord:
+    fixedLocation: true # Squirrel installer: always %LocalAppData%\Discord, with no folder option
+
+  winget:RiotGames.Valorant.NA:
+    location: 'E:\Games\Riot\VALORANT'
+
+  winget:RiotGames.LeagueOfLegends.NA:
+    location: 'E:\Games\Riot\League of Legends'

@@ -1,0 +1,11 @@
+{{ if eq .chezmoi.os "windows" -}}
+$ErrorActionPreference = 'Stop'
+Import-Module '{{ joinPath .chezmoi.workingTree "windows" "registrations.psm1" }}' -Force
+$apps = @'
+{{ .apps | toJson }}
+'@ | ConvertFrom-Json
+$layout = @'
+{{ (pick .layout "scoop" "state") | toJson }}
+'@ | ConvertFrom-Json
+Sync-Registration -Apps $apps -Layout $layout
+{{ end -}}

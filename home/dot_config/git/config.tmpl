@@ -1,0 +1,40 @@
+{{ includeTemplate "generated" . }}
+[user]
+	name = Aries Clark
+	email = me@ariesclark.com
+{{- /* A fresh machine's first apply renders before op is installed; the next apply adds the key. */ -}}
+{{- if lookPath "op" }}
+{{- /* 1Password item "Git Signing", by id so a rename doesn't break it. */}}
+	signingkey = {{ onepasswordRead "op://personal/rczscaa2ex5o5gqxuoo5aa6xmu/public key" }}
+{{- end }}
+[gpg]
+	format = ssh
+[gpg "ssh"]
+	allowedSignersFile = ~/.config/git/allowed_signers
+[commit]
+	gpgsign = true
+[init]
+	defaultBranch = main
+[pull]
+	rebase = true
+[rebase]
+	autoStash = true
+[url "https://github.com/"]
+	insteadOf = git@github.com:
+[credential "https://github.com"]
+	helper =
+	helper = !gh auth git-credential
+[credential "https://gist.github.com"]
+	helper =
+	helper = !gh auth git-credential
+{{- if eq .chezmoi.os "windows" }}
+[gpg "ssh"]
+	program = {{ joinPath .chezmoi.homeDir "AppData/Local/Microsoft/WindowsApps/op-ssh-sign.exe" | replace "\\" "/" }}
+[core]
+	sshCommand = C:/Windows/System32/OpenSSH/ssh.exe
+{{- else if contains "microsoft" (lower .chezmoi.kernel.osrelease) }}
+[gpg "ssh"]
+	program = op-ssh-sign-wsl.exe
+[core]
+	sshCommand = ssh.exe
+{{- end }}

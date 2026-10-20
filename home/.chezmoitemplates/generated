@@ -1,0 +1,20 @@
+{{- /* Which file chezmoi generated this one from and when that file last changed, in the target's comment syntax: {{ includeTemplate "generated" . }} */ -}}
+{{- $source := joinPath .chezmoi.sourceDir .chezmoi.sourceFile -}}
+{{- $changed := (stat $source).modTime -}}
+{{- if eq .chezmoi.os "windows" -}}
+{{-   $source = replace "/" "\\" $source -}}
+{{- end -}}
+{{- $lines := list
+  (printf "This file is managed by Chezmoi from %s." $source)
+  (printf "Last updated: %s" (dateInZone "2006-01-02T15:04:05Z" $changed "UTC")) -}}
+{{- $extension := ext .chezmoi.targetFile -}}
+{{- range $index, $line := $lines -}}
+{{-   if $index }}{{ "\n" }}{{ end -}}
+{{-   if eq $extension ".reg" -}}
+; {{ $line }}
+{{-   else if has $extension (list ".xml" ".md") -}}
+<!-- {{ $line }} -->
+{{-   else -}}
+# {{ $line }}
+{{-   end -}}
+{{- end -}}

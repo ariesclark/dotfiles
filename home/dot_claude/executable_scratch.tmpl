@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+{{ includeTemplate "generated" . }}
+# Create (or reuse) this session's scratch directory and print its path.
+#
+#   scratch="$(~/.config/lnk/.claude/scratch.sh redis-timeout-hunt)"
+#
+# The real directory lives in $TMPDIR (or /tmp), so a reboot clears it and
+# nothing needs upkeep. What sits in the project tree is a symlink, so the work
+# is visible and clickable in the editor. Passing the name as the mktemp
+# template carries it into the real path — /tmp/redis-timeout-hunt.a1B2c3
+# rather than /tmp/tmp.EKWNgv3vBU — so `ls /tmp` says what each directory is
+# for. Never write to the real path directly; always go through the printed one.
+#
+# -t rather than --tmpdir: --tmpdir is GNU-only and fails outright on BSD/macOS,
+# where a failure here leaves the caller with an empty path. -t is carried by
+# both (GNU marks it deprecated but still honours it); on BSD it takes a prefix
+# rather than a template, so the literal .XXXXXX survives into the name. An ugly
+# name beats a broken one.
+set -euo pipefail
+
+name="${1:?usage: scratch.sh <friendly-name>}"
+root="$PWD/.claude/tmp"
+scratch="$root/$name"
+
+mkdir -p "$root"
+
+# Drop links whose target a reboot removed, so a stale name is never reused.
+find "$root" -maxdepth 1 -xtype l -delete
+
+# -d follows the link: a live one is kept as is, a broken one is replaced. That
+# makes re-running this mid-session a no-op.
+if [ ! -d "$scratch" ]; then
+  d="$(mktemp -d -t "$name.XXXXXX")"
+  # Creating a symlink is atomic, so parallel subagents racing here are safe:
+  # exactly one caller wins, and every loser removes the directory it had just
+  # made and uses the winner's.
+  #
+  # Both flags carry weight. Without -n, ln follows the winner's link and
+  # quietly creates the new link *inside* the scratch directory instead of
+  # failing, so the loser never cleans up. Never add -f: a late caller would
+  # repoint the link and strand whatever the winner had already written.
+  ln -sn "$d" "$scratch" 2>/dev/null || rmdir "$d"
+fi
+
+printf '%s\n' "$scratch"

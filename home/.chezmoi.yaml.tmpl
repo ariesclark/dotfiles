@@ -1,0 +1,24 @@
+{{- $machine := dict -}}
+{{- if hasKey . "machine" -}}
+{{-   $machine = .machine -}}
+{{- end -}}
+{{- $groups := list -}}
+{{- if hasKey $machine "groups" -}}
+{{-   $groups = $machine.groups -}}
+{{- else -}}
+{{-   $groups = splitList "," (promptString "Groups for this machine (comma-separated)") -}}
+{{- end -}}
+{{- $partition := false -}}
+{{- if hasKey $machine "partition" -}}
+{{-   $partition = $machine.partition -}}
+{{- else -}}
+{{-   $partition = promptBool "Let apply partition this machine's disk when volumes are missing" false -}}
+{{- end -}}
+sourceDir: {{ .chezmoi.workingTree | quote }}
+data:
+  machine:
+    partition: {{ $partition }}
+    groups:
+{{- range $groups }}
+      - {{ trim . | quote }}
+{{- end }}

@@ -1,0 +1,14 @@
+{{ if eq .chezmoi.os "windows" -}}
+# reruns when windows/ changes: {{ template "glob-hash" (joinPath .chezmoi.workingTree "windows" "*.psm1") }}
+$ErrorActionPreference = 'Stop'
+foreach ($module in 'volumes', 'environment', 'scoop', 'placements') {
+	Import-Module (Join-Path '{{ joinPath .chezmoi.workingTree "windows" }}' "$module.psm1") -Force
+}
+$layout = @'
+{{ (omit .layout "state") | toJson }}
+'@ | ConvertFrom-Json
+Sync-Volume -Layout $layout
+Sync-Environment -Variables $layout.environment
+Install-Scoop -Root $layout.scoop
+Install-Placement -Placements $layout.placements
+{{ end -}}

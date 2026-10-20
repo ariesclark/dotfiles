@@ -1,0 +1,4 @@
+# Targets chezmoi deletes: configs that moved elsewhere.
+.gitconfig
+.config/git/windows
+.config/git/wsl

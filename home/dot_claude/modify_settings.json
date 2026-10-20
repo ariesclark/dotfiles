@@ -1,0 +1,13 @@
+{{- /* chezmoi:modify-template */ -}}
+{{- $declared := include "dot_claude/settings.yaml" | fromYaml -}}
+{{- $settings := $declared.settings -}}
+{{- if eq .chezmoi.os "linux" -}}
+{{- /* Linux-only extras point under ~. */ -}}
+{{-   $linux := $declared.linux -}}
+{{-   $_ := set $linux.statusLine "command" (joinPath .chezmoi.homeDir $linux.statusLine.command) -}}
+{{-   range $marketplace := values $linux.extraKnownMarketplaces -}}
+{{-     $_ := set $marketplace.source "path" (joinPath $.chezmoi.homeDir $marketplace.source.path) -}}
+{{-   end -}}
+{{-   $settings = mergeOverwrite $settings $linux -}}
+{{- end -}}
+{{- includeTemplate "merge-json" (dict "current" .chezmoi.stdin "values" $settings) }}

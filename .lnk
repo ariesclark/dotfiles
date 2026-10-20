@@ -1,8 +1,0 @@
-.bashrc.d/aliases.sh
-.claude/CLAUDE.md
-.claude/scratch
-.claude/settings.json
-.config/gh/config.yml
-.config/git/ignore
-.gitconfig
-.profile.d/exports.sh

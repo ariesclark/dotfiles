@@ -1,0 +1,57 @@
+{{- /* From desktop.yaml and apps.yaml; run_onchange_after_35-user-registry imports it. */ -}}
+{{- $values := dict
+  "alignment" (dict "left" 0 "center" 1)
+  "search" (dict "hidden" 0 "icon" 1 "box" 2 "button" 3)
+  "taskView" (dict "false" 0 "true" 1)
+  "widgets" (dict "false" 0 "true" 1)
+  "copilot" (dict "false" 0 "true" 1) -}}
+{{- $names := dict "alignment" "TaskbarAl" "search" "SearchboxTaskbarMode" "taskView" "ShowTaskViewButton" "widgets" "TaskbarDa" "copilot" "ShowCopilotButton" -}}
+{{- $taskbar := .desktop.taskbar -}}
+Windows Registry Editor Version 5.00
+{{ includeTemplate "generated" . }}
+
+[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced]
+{{- range $key := list "alignment" "taskView" "widgets" "copilot" }}
+"{{ get $names $key }}"=dword:{{ printf "%08x" (get (get $values $key) (toString (get $taskbar $key))) }}
+{{- end }}
+
+[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Search]
+"SearchboxTaskbarMode"=dword:{{ printf "%08x" (get $values.search $taskbar.search) }}
+
+[HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run]
+{{- range $id, $app := .apps }}
+{{-   if and (hasPrefix "scoop:" $id) (hasKey $app "startup") }}
+{{-     $current := joinPath $.layout.scoop "apps" (index (splitList "/" $id) 1) "current" }}
+{{-     range $app.startup }}
+{{-       $path := .path }}
+{{-       if not (regexMatch "^[A-Za-z]:" $path) }}{{ $path = joinPath $current $path }}{{ end }}
+{{-       if stat $path }}
+{{-         $command := printf "\"%s\"" $path }}
+{{-         if hasKey . "arguments" }}{{ $command = printf "%s %s" $command .arguments }}{{ end }}
+"{{ .name }}"="{{ $command | replace "\\" "\\\\" | replace "\"" "\\\"" }}"
+{{-       end }}
+{{-     end }}
+{{-   end }}
+{{- end }}
+{{- range $id, $app := .apps }}
+{{-   if and (hasPrefix "scoop:" $id) (hasKey $app "protocols") }}
+{{-     $current := joinPath $.layout.scoop "apps" (index (splitList "/" $id) 1) "current" }}
+{{-     range $app.protocols }}
+{{-       $path := .path }}
+{{-       if not (regexMatch "^[A-Za-z]:" $path) }}{{ $path = joinPath $current $path }}{{ end }}
+{{-       if stat $path }}
+{{-         $escaped := $path | replace "\\" "\\\\" }}
+
+[HKEY_CURRENT_USER\Software\Classes\{{ .name }}]
+@="URL:{{ .name }} Protocol"
+"URL Protocol"=""
+
+[HKEY_CURRENT_USER\Software\Classes\{{ .name }}\DefaultIcon]
+@="{{ $escaped }}"
+
+[HKEY_CURRENT_USER\Software\Classes\{{ .name }}\Shell\Open\Command]
+@="{{ printf "\"%s\" %s" $path .arguments | replace "\\" "\\\\" | replace "\"" "\\\"" }}"
+{{-       end }}
+{{-     end }}
+{{-   end }}
+{{- end }}

@@ -1,0 +1,4 @@
+{{- /* The shared gh config, labelled with its own source, since that's the file to edit. */ -}}
+{{- $data := deepCopy . -}}
+{{- $_ := set $data.chezmoi "sourceFile" "dot_config/gh/config.yml.tmpl" -}}
+{{ includeTemplate "dot_config/gh/config.yml.tmpl" $data }}
