@@ -50,6 +50,30 @@ properties:
         Force: true
 
     - resource: PSDscResources/Registry
+      id: chromiumEphemeral
+      directives:
+        description: Chromium deletes its profile when it closes
+        securityContext: elevated
+      settings:
+        Key: HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Chromium
+        ValueName: ForceEphemeralProfiles
+        ValueType: Dword
+        ValueData: '1'
+        Force: true
+
+    - resource: PSDscResources/Registry
+      id: chromiumUblock
+      directives:
+        description: uBlock Origin Lite in Chromium
+        securityContext: elevated
+      settings:
+        Key: HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Chromium\ExtensionInstallForcelist
+        ValueName: '1'
+        ValueType: String
+        ValueData: ddkjiahejlhfcafbddmgiahcphecmpfh;https://clients2.google.com/service/update2/crx
+        Force: true
+
+    - resource: PSDscResources/Registry
       id: startLayoutFile
       directives:
         description: Taskbar pins from taskbar.xml, machine-wide
