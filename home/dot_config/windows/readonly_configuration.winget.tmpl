@@ -1,0 +1,153 @@
+{{ includeTemplate "generated" . }}
+# yaml-language-server: $schema=https://aka.ms/configuration-dsc-schema/0.2
+properties:
+  configurationVersion: 0.2.0
+  resources:
+    - resource: Microsoft.Windows.Developer/Taskbar
+      id: taskbar
+      directives:
+        description: Taskbar settings
+        allowPrerelease: true
+      settings:
+        Alignment: Middle
+        SearchboxMode: Hide
+        TaskViewButton: Hide
+        WidgetsButton: Hide
+        RestartExplorer: true
+
+    - resource: PSDscResources/Registry
+      id: copilot
+      directives:
+        description: No Copilot button
+      settings:
+        Key: HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced
+        ValueName: ShowCopilotButton
+        ValueType: Dword
+        ValueData: '0'
+        Force: true
+
+    - resource: PSDscResources/Registry
+      id: firefoxTaskbarId
+      directives:
+        description: Firefox's windows use its Start menu shortcut's id, so they stack under its pin
+      settings:
+        Key: HKEY_CURRENT_USER\Software\Mozilla\Firefox\TaskBarIDs
+        ValueName: {{ joinPath .system.install.scoop "apps" "firefox" "current" | quote }}
+        ValueType: String
+        ValueData: 629BB8613F20C278
+        Force: true
+
+    - resource: PSDscResources/Registry
+      id: startLayoutFile
+      directives:
+        description: Taskbar pins from taskbar.xml, machine-wide
+        securityContext: elevated
+      settings:
+        Key: HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\Windows\Explorer
+        ValueName: StartLayoutFile
+        ValueType: ExpandString
+        ValueData: {{ joinPath .chezmoi.homeDir ".config" "windows" "taskbar.xml" | quote }}
+        Force: true
+
+    - resource: PSDscResources/Registry
+      id: startLayoutLocked
+      directives:
+        description: Taskbar pins stay as declared
+        securityContext: elevated
+      settings:
+        Key: HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\Windows\Explorer
+        ValueName: LockedStartLayout
+        ValueType: Dword
+        ValueData: '1'
+        Force: true
+
+    - resource: PSDscResources/Script
+      id: tempFolder
+      directives:
+        description: The temp folder, before TEMP points at it
+      settings:
+        GetScript: |
+          @{ Result = '' }
+        TestScript: |
+          Test-Path -LiteralPath 'E:\Temp' -PathType Container
+        SetScript: |
+          New-Item -ItemType Directory -Force -Path 'E:\Temp' | Out-Null
+
+    - resource: PSDscResources/Environment
+      id: temp
+      dependsOn:
+        - tempFolder
+      directives:
+        description: Temp files on E:, for every process
+        securityContext: elevated
+      settings:
+        Name: TEMP
+        Value: E:\Temp
+        Target:
+          - Machine
+
+    - resource: PSDscResources/Environment
+      id: tmp
+      dependsOn:
+        - tempFolder
+      directives:
+        description: Temp files on E:, for every process
+        securityContext: elevated
+      settings:
+        Name: TMP
+        Value: E:\Temp
+        Target:
+          - Machine
+
+    - resource: PSDscResources/Registry
+      id: userTemp
+      dependsOn:
+        - tempFolder
+      directives:
+        description: Your own TEMP, which Windows sets per user and which wins over the machine-wide one
+      settings:
+        Key: HKEY_CURRENT_USER\Environment
+        ValueName: TEMP
+        ValueType: ExpandString
+        ValueData: E:\Temp
+        Force: true
+
+    - resource: PSDscResources/Registry
+      id: userTmp
+      dependsOn:
+        - tempFolder
+      directives:
+        description: Your own TMP, which Windows sets per user and which wins over the machine-wide one
+      settings:
+        Key: HKEY_CURRENT_USER\Environment
+        ValueName: TMP
+        ValueType: ExpandString
+        ValueData: E:\Temp
+        Force: true
+
+    - resource: PSDscResources/Environment
+      id: doNotTrack
+      directives:
+        description: Ask tools not to send telemetry (https://donottrack.sh)
+        securityContext: elevated
+      settings:
+        Name: DO_NOT_TRACK
+        Value: '1'
+        Target:
+          - Machine
+
+    - resource: PSDscResources/Script
+      id: startupOff
+      directives:
+        description: Startup entries and logon tasks kept off, even when their app re-adds them
+        securityContext: elevated
+      settings:
+        GetScript: |
+          @{ Result = '' }
+        TestScript: |
+          Import-Module {{ joinPath .chezmoi.workingTree "windows" "startup.psm1" | squote }} -Force
+          $disabled = 'MicrosoftEdgeAutoLaunch_*', 'RiotClient', 'StartAUEP', '\StartDVR'
+          @(Get-StartupChange -Disabled $disabled -Entries @(Get-StartupEntry)).Count -eq 0
+        SetScript: |
+          Import-Module {{ joinPath .chezmoi.workingTree "windows" "startup.psm1" | squote }} -Force
+          Sync-Startup -Disabled 'MicrosoftEdgeAutoLaunch_*', 'RiotClient', 'StartAUEP', '\StartDVR'

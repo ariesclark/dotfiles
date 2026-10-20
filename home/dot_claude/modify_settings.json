@@ -2,7 +2,6 @@
 {{- $declared := include "dot_claude/settings.yaml" | fromYaml -}}
 {{- $settings := $declared.settings -}}
 {{- if eq .chezmoi.os "linux" -}}
-{{- /* Linux-only extras point under ~. */ -}}
 {{-   $linux := $declared.linux -}}
 {{-   $_ := set $linux.statusLine "command" (joinPath .chezmoi.homeDir $linux.statusLine.command) -}}
 {{-   range $marketplace := values $linux.extraKnownMarketplaces -}}

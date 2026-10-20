@@ -14,7 +14,7 @@ apps:
       - install-file-context.reg
     shims:
       - name: pwsh
-        directory: '%LOCALAPPDATA%\Microsoft\WindowsApps' # where Claude Code's shell looks for pwsh
+        directory: '%LOCALAPPDATA%\Microsoft\WindowsApps'
 
   scoop:extras/powertoys:
     removeAppx:
@@ -35,6 +35,9 @@ apps:
       - install-github-integration.reg
 
   scoop:extras/sharex:
+    mounts:
+      - from: 'E:\Scoop\persist\sharex\ShareX'
+        to: 'D:\Users\Documents\ShareX'
     startup:
       - name: ShareX
         path: ShareX.exe
@@ -47,6 +50,11 @@ apps:
         arguments: --no-window
 
   scoop:games/steam:
+    mounts:
+      - from: 'E:\Scoop\persist\steam\steamapps'
+        to: 'E:\Games\Steam'
+      - from: '%LOCALAPPDATA%\Steam'
+        to: 'E:\Cache\Steam'
     protocols:
       - name: steam
         path: steam.exe
@@ -59,19 +67,22 @@ apps:
         path: 'E:\Games\Steam\common\wallpaper_engine\wallpaper64.exe'
         arguments: -silent
 
-  # winget apps install to layout.winget\<id> unless they say otherwise here.
-  # MSIX packages can't take a folder: Windows keeps them in C:\Program Files\WindowsApps, with the Store apps.
   winget:AgileBits.1Password:
-    installerType: msix # neither installer can leave C:, and the MSIX keeps itself updated
+    installerType: msix
 
   winget:Anthropic.Claude:
     installerType: msix
 
   winget:Discord.Discord:
-    fixedLocation: true # Squirrel installer: always %LocalAppData%\Discord, with no folder option
+    fixedLocation: true
 
   winget:RiotGames.Valorant.NA:
     location: 'E:\Games\Riot\VALORANT'
 
   winget:RiotGames.LeagueOfLegends.NA:
     location: 'E:\Games\Riot\League of Legends'
+
+  steam:578080:
+    mounts:
+      - from: '%LOCALAPPDATA%\TslGame'
+        to: 'E:\Games\PUBG'

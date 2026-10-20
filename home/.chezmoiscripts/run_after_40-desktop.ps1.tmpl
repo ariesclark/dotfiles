@@ -1,9 +1,0 @@
-{{ if eq .chezmoi.os "windows" -}}
-# Every apply: apps re-add their startup entries. Wildcards and machine-wide entries need a script.
-$ErrorActionPreference = 'Stop'
-Import-Module '{{ joinPath .chezmoi.workingTree "windows" "startup.psm1" }}' -Force
-$disabled = @'
-{{ .desktop.startup.disabled | toJson }}
-'@ | ConvertFrom-Json
-Sync-Startup -Disabled @($disabled)
-{{ end -}}

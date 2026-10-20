@@ -5,44 +5,47 @@ This branch replaces the lnk setup on `main` and gets merged once it's proven by
 
 ## Drives
 
-Each drive is a lifecycle. Volumes are found by label, so they can be partitions or separate disks.
+Each drive is a lifecycle. `system.yaml` declares them by drive letter; a letter counts as there when a volume on Windows' own disk holds it, whatever its label, and the label is then corrected. A letter held by a volume on another disk, like a USB stick, stops the apply rather than being taken over.
 
 | Drive | Label | Holds | Rule |
 |---|---|---|---|
-| C: | Windows | Windows, and only what can't be moved to E: | Wiped by a reset; every exception is recorded with its reason |
+| C: | System | Windows, and only what can't be moved to E: | Wiped by a reset; every exception is recorded with its reason |
 | D: | Data | your files (`D:\Users`), package state (`D:\Machine`) | Backed up |
-| E: | Apps & Cache | Scoop apps and their state (`E:\Scoop`), games | Replaceable |
+| E: | Apps | Scoop apps and their state (`E:\Scoop`), games, the pagefile (as big as the installed memory) | Replaceable |
 
 ## Layout
 
 ```
 home/                               chezmoi source (.chezmoiroot) — mirrors ~
   .chezmoi.yaml.tmpl                per-machine config; asks once for groups and partition opt-in
-  .chezmoidata/layout.yaml          volumes, labels, Scoop root, winget folder, placements, state file
+  .chezmoidata/system.yaml          volumes by letter (label, size, pagefile), install folders and record,
+                                    environment
   .chezmoidata/groups.yaml          groups → apps, and what each group needs
   .chezmoidata/apps.yaml            per-app config: what it registers with Windows, where it installs
-  .chezmoidata/desktop.yaml         taskbar settings and pins, startup entries to keep off
   .chezmoitemplates/                only templates several files share: merge-json, glob-hash, generated
   .chezmoiremove                    targets to delete (configs that moved)
   dot_claude/, dot_config/, AppData/   the configs, each next to whatever it's rendered from (see Configs)
   .archive/                         what chezmoi renders on this machine, as it lands under ~ (git-ignored)
   .chezmoiscripts/
     run_before_00-partition         creates missing volumes (opt-in, elevates only this step)
-    run_onchange_before_10-layout   volume labels, Scoop itself, placements
+    run_onchange_before_10-layout   volume labels, the pagefile, Scoop itself, mounts
     run_onchange_before_20-packages groups → install / uninstall
+    run_before_90-writable          clears read-only on readonly_ configs so the apply can update them
+    run_after_05-readonly           marks readonly_ configs read-only again (every apply)
     run_after_30-registrations      vendor .reg/.ps1 files, stale packages, shims (every apply)
-    run_onchange_after_35-user-registry   imports the rendered user.reg, sets the taskbar policy
-    run_after_40-desktop            keeps desktop.yaml's startup entries off (every apply)
+    run_onchange_after_35-user-registry   imports the rendered user.reg
+    run_onchange_after_36-windows-configuration   winget configure: taskbar, pin policy, startup offs
     run_after_99-archive            rebuilds .archive/ from one chezmoi archive (every apply)
 docs/goals.md                       what's planned
 windows/                            one module per job, each with its Pester tests
   volumes.psm1                      volume checks, labels, partitioning
-  environment.psm1                  user environment variables (TEMP on E:)
-  placements.psm1                   junctions from app folders to their targets
+  pagefile.psm1                     one fixed-size pagefile off C: (asks for admin only when it differs)
+  mounts.psm1                       junctions from the folders apps use to where their contents live
   packages.psm1                     groups → desired apps → what to install and uninstall
   scoop.psm1, winget.psm1, steam.psm1   installing and uninstalling from each source
   registrations.psm1                what apps register with Windows (from apps.yaml)
-  startup.psm1, taskbar.psm1        startup entries to keep off; the taskbar layout policy
+  startup.psm1                      startup entries to keep off (used by configuration.winget)
+  readonly.psm1                     finds readonly_ targets and sets or clears their read-only flag
   archive.psm1                      unpacks that archive into .archive/
   data.tests.ps1                    checks on the YAML itself
   templates.tests.ps1               checks on what the templates render
@@ -72,7 +75,7 @@ opt-in it stops the apply with the plan and how to opt in.
 | see what will land | `chezmoi diff`, or look in `home/.archive/` after an apply |
 | run the tests | `Invoke-Pester windows` |
 
-Removal only touches apps this repo installed: the last applied set is kept in `D:\Machine\packages.json` (JSON — the module's own state, never hand-edited),
+Removal only touches apps this repo installed: the last applied set is kept in `install.record` (`D:\Machine\packages.json`) (JSON — the module's own state, never hand-edited),
 and anything you installed by hand is never uninstalled.
 
 ## Apps and groups
@@ -126,7 +129,7 @@ browser integration), WARP (network driver), League (Vanguard driver),
 CurseForge (no Scoop manifest), Claude (self-updating MSIX), Wintoys (Store only).
 
 **Installs stay off C:** where the installer allows it. Each winget app installs to its own folder under
-`layout.winget` (`E:\Apps\<id>`, passed as winget `--location`). `apps.yaml` only lists the exceptions:
+`install.winget` (`E:\Apps\<id>`, passed as winget `--location`). `apps.yaml` only lists the exceptions:
 
 | Key | Use for | Apps |
 |---|---|---|
@@ -150,16 +153,19 @@ its own exe on every launch, which bypasses the portable launcher.
 
 ## Desktop
 
-`desktop.yaml` declares the taskbar and what starts at sign-in.
+The taskbar and what starts at sign-in are written out directly in two files, not generated from data:
 
-- **Taskbar settings** (alignment, search, Task View, Widgets, Copilot) render into `~\.config\windows\user.reg`,
-  with the Scoop apps' startup entries and URL handlers; `run_onchange_after_35-user-registry` imports it
-  whenever it changes and restarts Explorer.
-- **Pins** render into `~\.config\windows\taskbar.xml`, which the Start layout policy points at; Windows applies
-  it at sign-in, replacing whatever was pinned. Setting the policy takes one admin prompt, once.
-- **Startup entries to keep off** stay a script (`run_after_40-desktop`, every apply), because names can be
-  wildcards (Edge's carries a per-install id) and some live machine-wide: they get Settings > Startup's "off"
-  flag, so an app re-adding its entry stays off, and logon tasks are disabled.
+- **`~\.config\windows\configuration.winget`**, a [WinGet configuration](https://learn.microsoft.com/en-us/windows/package-manager/configuration/create)
+  file: taskbar settings (alignment, search, Task View, Widgets), no Copilot button, machine-wide environment variables, the machine-wide Start layout
+  policy pointing at `taskbar.xml`, and the startup entries and logon tasks to keep off (through `windows/startup.psm1`,
+  so wildcards like Edge's per-install name work). `run_onchange_after_36-windows-configuration` applies it with
+  `winget configure` whenever it or `taskbar.xml` changes: one admin prompt per run, so it runs only then.
+  Its modules come from the PowerShell Gallery at versions pinned in that script, saved to
+  `install.configurationModules` on E:.
+- **`~\.config\windows\taskbar.xml`**, the pins in order. Windows only applies a per-user layout policy to Store
+  apps, so the policy is machine-wide. Pins you make by hand always come before the policy's.
+
+`user.reg` keeps only what `apps.yaml` renders: the Scoop apps' startup entries and URL handlers.
 
 ## Configs
 
@@ -167,35 +173,35 @@ Configs are chezmoi files under `home/`, mirroring `~`:
 
 | Config | Source | How |
 |---|---|---|
-| git | `dot_config/git/config.tmpl`, `ignore.tmpl`, `allowed_signers.tmpl` | one file; the signing key comes from 1Password (`op://personal/rczscaa2ex5o5gqxuoo5aa6xmu/public key`) at apply time; the Windows block (signing through 1Password's `op-ssh-sign`, Windows' OpenSSH) and the WSL block are inline conditionals; `allowed_signers` trusts that key for git signatures |
+| git | `dot_config/git/readonly_config.tmpl`, `readonly_ignore.tmpl`, `readonly_allowed_signers.tmpl` | one file; the signing key comes from 1Password (`op://personal/rczscaa2ex5o5gqxuoo5aa6xmu/public key`) at apply time; the Windows block (signing through 1Password's `op-ssh-sign`, Windows' OpenSSH) and the WSL block are inline conditionals; `allowed_signers` trusts that key for git signatures |
 | gh | `dot_config/gh/config.yml.tmpl` | on Windows, `AppData/Roaming/GitHub CLI/config.yml.tmpl` renders it again |
-| Claude Code | `dot_claude/CLAUDE.md.tmpl`, `dot_claude/settings.yaml` + `modify_settings.json` | `modify_`: `settings.yaml` (never written to `~`) wins over the live file, keys Claude Code adds are kept; its Linux-only extras only on Linux |
+| Claude Code | `dot_claude/readonly_CLAUDE.md.tmpl`, `dot_claude/settings.yaml` + `modify_settings.json` | `modify_`: `settings.yaml` (never written to `~`) wins over the live file, keys Claude Code adds are kept; its Linux-only extras only on Linux |
 | Windows Terminal | `AppData/Local/Packages/…/modify_settings.json` | `modify_`: default profile PowerShell 7, inline |
 | Discord | `AppData/Roaming/discord/modify_settings.json` | `modify_`: starts minimized, closes to tray, inline; only once Discord is installed |
-| editorconfig | `dot_editorconfig.tmpl` | as is |
+| editorconfig | `readonly_dot_editorconfig.tmpl` | as is |
 | bash, WSL | `dot_bashrc.d/`, `dot_profile.d/`, `dot_claude/executable_*` | kept for Linux and WSL, ignored on Windows (`.chezmoiignore`) |
 
-Every config opens with two lines naming its source and when that source last changed (`.chezmoitemplates/generated`, in the file's own comment syntax),
-except JSON, which has no comments. A `modify_` template reads the app's current file and changes only what it declares (`.chezmoitemplates/merge-json`),
+Every config opens with two lines saying it's managed by chezmoi and which source file to change instead (`.chezmoitemplates/generated`, in the file's own comment syntax),
+except JSON, which has no comments. Configs no app writes back to are `readonly_`; on Windows chezmoi only marks a file read-only when it creates it and then can't replace it, so `run_before_90-writable` clears the flag before each apply writes and `run_after_05-readonly` sets it again (`windows/readonly.psm1`). A `modify_` template reads the app's current file and changes only what it declares (`.chezmoitemplates/merge-json`),
 so the app can keep writing its own state. `.chezmoidata` holds only what several files and scripts read:
-`layout`, `groups`, `apps`, `desktop`. chezmoi writes only under one destination (`~` here); configs elsewhere, like Scoop's
+`system`, `groups`, `apps`. chezmoi writes only under one destination (`~` here); configs elsewhere, like Scoop's
 persist folders on E:, are a goal (a second source with its own destination).
 
-## Placements
+## Mounts
 
-A placement makes an app folder a junction to a target, creating the target first. It never replaces a folder
+A mount makes the folder an app uses (`from`) a junction to where its contents really live (`to`), creating `to` first. Mounts are declared on their app in `apps.yaml`, so only the apps this machine installs get theirs. It never replaces a folder
 that has contents.
 
-| Placement | Link | Target |
+| Mount | From | To |
 |---|---|---|
 | ShareX | `E:\Scoop\persist\sharex\ShareX` | `D:\Users\Documents\ShareX` |
 | Steam library | `E:\Scoop\persist\steam\steamapps` | `E:\Games\Steam` |
 | Steam web cache | `%LOCALAPPDATA%\Steam` | `E:\Cache\Steam` |
 | PUBG settings, logs and replays | `%LOCALAPPDATA%\TslGame` | `E:\Games\PUBG` |
 
-`layout.yaml` also sets user environment variables (`environment`): `TEMP` and `TMP` point at `E:\Temp`,
+`configuration.winget` sets machine-wide environment variables: `TEMP` and `TMP` point at `E:\Temp`,
 and `DO_NOT_TRACK=1`.
-New processes pick them up; Windows' own temp folder stays in `C:\Windows\Temp`.
+New processes pick them up, services included, so Windows' own temp files go to `E:\Temp` too.
 
 Scoop's persist stays on E: next to the apps: it hardlinks files, and hardlinks can't cross drives.
 
@@ -221,7 +227,8 @@ The same steps work for a brand-new machine and after a Windows reset.
 5. **Approve the admin prompt** if one appears. It only appears when volumes are missing, and it covers just
    the partitioning: shrinking C: and creating D: and E:.
 6. **Wait for the rest of the apply:**
-   - **labels:** the volumes get their labels. Relabelling C: needs admin; without it the apply only warns.
+   - **labels:** the volumes get their labels. Relabelling needs admin; without it the apply only warns.
+   - **pagefile:** one admin prompt the first time, to put it on E:; Windows uses it from the next restart.
    - **Scoop:** installed to `E:\Scoop`. After a reset it's already there and only its PATH entry comes back.
    - **apps:** every app of your groups is installed.
    - **registrations:** right-click menus, startup entries and URL handlers for the installed apps.

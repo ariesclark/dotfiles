@@ -1,7 +1,5 @@
 Set-StrictMode -Version Latest
 
-# home/.archive/ from one chezmoi archive: every managed file as it lands under ~, and .chezmoiscripts/ with every
-# script. It's built beside the old one and swapped in, so a failed build leaves the old one.
 function Update-Archive {
 	[CmdletBinding()]
 	param(

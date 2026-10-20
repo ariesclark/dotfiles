@@ -1,13 +1,21 @@
 Set-StrictMode -Version Latest
 
-# What starts with Windows that desktop.yaml turns off. Run entries get Settings > Startup's "disabled" flag
-# (StartupApproved), so an app that re-adds its entry stays off; logon tasks get disabled.
-
 $runKeys = @(
 	@{ Scope = 'user'; Run = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'; Approved = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run' }
 	@{ Scope = 'machine'; Run = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run'; Approved = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run' }
 	@{ Scope = 'machine'; Run = 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Run'; Approved = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run32' }
 )
+
+function Test-LogonTrigger([object] $Trigger) {
+	$class = 'MSFT_TaskLogonTrigger'
+	if ($null -eq $Trigger) {
+		return $false
+	}
+	if ($Trigger.PSObject.Properties['CimClass'] -and $Trigger.CimClass.CimClassName -eq $class) {
+		return $true
+	}
+	[bool]($Trigger.PSObject.TypeNames | Where-Object { $_ -like "*/$class" })
+}
 
 function Get-StartupEntry {
 	foreach ($key in $runKeys) {
@@ -22,7 +30,7 @@ function Get-StartupEntry {
 		}
 	}
 	foreach ($task in Get-ScheduledTask | Where-Object { $_.TaskPath -notlike '\Microsoft\*' }) {
-		if ($task.Triggers | Where-Object { $_.CimClass.CimClassName -eq 'MSFT_TaskLogonTrigger' }) {
+		if ($task.Triggers | Where-Object { Test-LogonTrigger $_ }) {
 			[pscustomobject]@{ Kind = 'task'; Scope = 'machine'; Name = "$($task.TaskPath)$($task.TaskName)"; Enabled = ($task.State -ne 'Disabled'); Approved = $null }
 		}
 	}
@@ -47,7 +55,6 @@ function Sync-Startup {
 	param([Parameter(Mandatory)] [AllowEmptyCollection()] [string[]] $Disabled)
 
 	$changes = @(Get-StartupChange -Disabled $Disabled -Entries @(Get-StartupEntry))
-	# 0x03 followed by zeros is what Settings > Startup writes for "off".
 	$off = [byte[]](3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 	foreach ($change in $changes | Where-Object Scope -eq 'user') {
 		New-Item -Path $change.Approved -Force -ErrorAction SilentlyContinue | Out-Null
@@ -59,7 +66,6 @@ function Sync-Startup {
 	if ($machine.Count -eq 0) {
 		return
 	}
-	# Machine-wide entries need admin: one prompt for all of them.
 	Write-Host "Startup: turning off $(($machine.Name) -join ', ') (admin prompt)."
 	$commands = foreach ($change in $machine) {
 		if ($change.Kind -eq 'task') {
@@ -77,4 +83,4 @@ function Sync-Startup {
 	}
 }
 
-Export-ModuleMember -Function Get-StartupEntry, Get-StartupChange, Sync-Startup
+Export-ModuleMember -Function Test-LogonTrigger, Get-StartupEntry, Get-StartupChange, Sync-Startup

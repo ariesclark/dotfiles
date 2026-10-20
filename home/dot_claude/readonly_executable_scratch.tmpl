@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+{{ includeTemplate "generated" . }}
+set -euo pipefail
+
+name="${1:?usage: scratch.sh <friendly-name>}"
+root="$PWD/.claude/tmp"
+scratch="$root/$name"
+
+mkdir -p "$root"
+
+find "$root" -maxdepth 1 -xtype l -delete
+
+if [ ! -d "$scratch" ]; then
+  d="$(mktemp -d -t "$name.XXXXXX")"
+  ln -sn "$d" "$scratch" 2>/dev/null || rmdir "$d"
+fi
+
+printf '%s\n' "$scratch"

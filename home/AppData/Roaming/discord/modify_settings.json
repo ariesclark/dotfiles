@@ -1,3 +1,2 @@
 {{- /* chezmoi:modify-template */ -}}
-{{- /* Starts in the tray from its startup entry, and closes to the tray. */ -}}
 {{- includeTemplate "merge-json" (dict "current" .chezmoi.stdin "values" (dict "START_MINIMIZED" true "MINIMIZE_TO_TRAY" true)) }}

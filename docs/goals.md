@@ -12,14 +12,12 @@ Where this repo is heading. Nothing here is done yet; the [readme](../readme.md)
   Docker Desktop was uninstalled on 2026-10-19 because Scoop doesn't package it and it can't be fully declared.
 - Declare winget install locations (`--location`), so a fresh League install lands in `E:\Games\Riot`
   (moved there by hand on 2026-10-18). VALORANT has no winget package; the Riot Client installs it.
-- Claude Code data (`~\.claude`) as a placement on D:.
+- Claude Code data (`~\.claude`) as a mount on D:.
 - Declare Windows settings now made by hand.
 - Configs outside `~` as chezmoi files: a second source (e.g. `drives/e/`) applied with `--destination E:\` and
   its own state, run from the main apply. First targets: Scoop's persist folders (Firefox, VS Code).
 - Claude Code's status line and scratch helper on Windows (both are bash scripts today, kept for WSL).
-- Unset user environment variables that leave `layout.environment`, the way packages that leave a group are
-  uninstalled (track the applied set in `D:\Machine`). Today a removed variable stays set until removed by hand.
-- Shrink C: to `layout.yaml`'s size on an existing machine, not only when creating D: and E:. When Windows
+- Shrink C: to `system.yaml`'s size on an existing machine, not only when creating D: and E:. When Windows
   refuses, read the blocker from the Defrag event log (ID 259) and clear what's safe to clear: the pagefile,
   the hibernation file, restore points, and the change journal (`fsutil usn deletejournal`, then recreate it).
   Then ask for a restart, finish on the next apply, and turn the pagefile back on. Done by hand on 2026-10-19,

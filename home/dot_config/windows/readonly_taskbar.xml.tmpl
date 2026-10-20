@@ -4,16 +4,12 @@
   <CustomTaskbarLayoutCollection PinListPlacement="Replace">
     <defaultlayout:TaskbarLayout>
       <taskbar:TaskbarPinList>
-{{- range .desktop.taskbar.pins }}
-{{-   $value := . | replace "&" "&amp;" | replace "\"" "&quot;" | replace "<" "&lt;" }}
-{{-   if hasSuffix ".lnk" . }}
-        <taskbar:DesktopApp DesktopApplicationLinkPath="{{ $value }}" />
-{{-   else if contains "!" . }}
-        <taskbar:UWA AppUserModelID="{{ $value }}" />
-{{-   else }}
-        <taskbar:DesktopApp DesktopApplicationID="{{ $value }}" />
-{{-   end }}
-{{- end }}
+        <taskbar:DesktopApp DesktopApplicationLinkPath="%APPDATA%\Microsoft\Windows\Start Menu\Programs\Firefox.lnk" />
+        <taskbar:DesktopApp DesktopApplicationID="com.squirrel.Discord.Discord" />
+        <taskbar:DesktopApp DesktopApplicationLinkPath="%APPDATA%\Microsoft\Windows\Start Menu\Programs\Scoop Apps\Visual Studio Code.lnk" />
+        <taskbar:DesktopApp DesktopApplicationID="Microsoft.Windows.Explorer" />
+        <taskbar:UWA AppUserModelID="Claude_pzs8sxrjxfjjc!Claude" />
+        <taskbar:DesktopApp DesktopApplicationLinkPath="%ALLUSERSPROFILE%\Microsoft\Windows\Start Menu\Programs\System Tools\Task Manager.lnk" />
       </taskbar:TaskbarPinList>
     </defaultlayout:TaskbarLayout>
   </CustomTaskbarLayoutCollection>

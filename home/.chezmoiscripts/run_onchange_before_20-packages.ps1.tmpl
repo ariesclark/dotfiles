@@ -11,8 +11,8 @@ $apps = @'
 $selected = @'
 {{ .machine.groups | toJson }}
 '@ | ConvertFrom-Json
-$layout = @'
-{{ (pick .layout "scoop" "state" "winget") | toJson }}
+$install = @'
+{{ .system.install | toJson }}
 '@ | ConvertFrom-Json
-Sync-Package -Groups $groups -Apps $apps -Selected $selected -Layout $layout
+Sync-Package -Groups $groups -Apps $apps -Selected $selected -Install $install
 {{ end -}}

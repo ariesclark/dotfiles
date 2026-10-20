@@ -1,0 +1,12 @@
+{{ if eq .chezmoi.os "windows" -}}
+$ErrorActionPreference = 'Stop'
+Import-Module '{{ joinPath .chezmoi.workingTree "windows" "readonly.psm1" }}' -Force
+$state = Join-Path $env:TEMP "chezmoi-readonly-$PID.boltdb"
+try {
+	$targets = @(Get-ReadOnlyTarget -SourceDirectory '{{ .chezmoi.sourceDir }}' -TargetPath { param([string[]] $Sources) chezmoi --persistent-state $state target-path @Sources })
+	Set-TargetReadOnly -Path $targets -ReadOnly $true
+}
+finally {
+	Remove-Item -LiteralPath $state -Force -ErrorAction SilentlyContinue
+}
+{{ end -}}

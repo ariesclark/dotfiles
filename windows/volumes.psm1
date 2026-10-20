@@ -1,41 +1,62 @@
 Set-StrictMode -Version Latest
 
+function ConvertFrom-Size {
+	[CmdletBinding()]
+	param([Parameter(Mandatory)] [string] $Size)
+
+	if ($Size -ieq 'fill') {
+		return $null
+	}
+	if ($Size -match '^\s*(\d+)\s*GB\s*$') {
+		return [int]$Matches[1]
+	}
+	throw "Can't read the size '$Size'; use a number of GB like 100GB, or fill."
+}
+
+function ConvertTo-Layout {
+	[CmdletBinding()]
+	param(
+		[Parameter(Mandatory)] [object] $Volumes,
+		[Parameter(Mandatory)] [string] $SystemLetter
+	)
+
+	$systemLetter = $SystemLetter.TrimEnd(':').ToUpperInvariant()
+	$all = foreach ($entry in $Volumes.PSObject.Properties) {
+		[pscustomobject]@{ Label = $entry.Value.label; Letter = $entry.Name.ToUpperInvariant(); SizeGB = ConvertFrom-Size $entry.Value.size }
+	}
+	$system = $all | Where-Object Letter -eq $systemLetter
+	if (-not $system) {
+		throw "system.yaml declares no volume for $($systemLetter):, where Windows is."
+	}
+	if ($null -eq $system.SizeGB) {
+		throw "Windows' own volume ($($systemLetter):) needs a size, not fill."
+	}
+	$others = @($all | Where-Object Letter -ne $systemLetter)
+	$filling = @($others | Where-Object { $null -eq $_.SizeGB })
+	if ($filling.Count -gt 1) {
+		throw "Only one volume can fill the rest of the disk, not $($filling.Letter -join ', ')."
+	}
+	[pscustomobject]@{
+		System = $system
+		Volumes = @($others | Sort-Object { $null -eq $_.SizeGB }, Letter)
+	}
+}
+
 function Get-VolumeProblem {
 	[CmdletBinding()]
 	param(
 		[Parameter(Mandatory)] [object] $Layout,
-		[Parameter(Mandatory)] [AllowEmptyCollection()] [object[]] $Volumes
+		[Parameter(Mandatory)] [AllowEmptyCollection()] [object[]] $Volumes,
+		[Parameter(Mandatory)] [int] $SystemDisk
 	)
 
-	foreach ($declared in $Layout.Volumes) {
-		$expected = $declared.Letter.ToUpperInvariant()
-		$matching = @($Volumes | Where-Object { $_.FileSystemLabel -and $_.FileSystemLabel -ieq $declared.Label })
-
-		$problem = @{ Label = $declared.Label; Expected = $expected; Current = $null; Holder = $null }
-
-		if ($matching.Count -eq 0) {
-			[pscustomobject]($problem + @{ Kind = 'missing' })
-			continue
+	foreach ($declared in @($Layout.System) + @($Layout.Volumes)) {
+		$holder = $Volumes | Where-Object { "$($_.DriveLetter)" -ieq $declared.Letter } | Select-Object -First 1
+		if (-not $holder) {
+			[pscustomobject]@{ Kind = 'missing'; Letter = $declared.Letter; Label = $declared.Label; Holder = $null }
 		}
-
-		if ($matching.Count -gt 1) {
-			[pscustomobject]($problem + @{ Kind = 'duplicate-label' })
-			continue
-		}
-
-		$current = "$($matching[0].DriveLetter)".ToUpperInvariant()
-		if ($current -eq $expected) {
-			continue
-		}
-
-		$problem.Current = $current
-		$holder = $Volumes | Where-Object { "$($_.DriveLetter)" -ieq $expected } | Select-Object -First 1
-		if ($holder) {
-			$problem.Holder = $holder.FileSystemLabel
-			[pscustomobject]($problem + @{ Kind = 'letter-taken' })
-		}
-		else {
-			[pscustomobject]($problem + @{ Kind = 'wrong-letter' })
+		elseif ($holder.DiskNumber -ne $SystemDisk) {
+			[pscustomobject]@{ Kind = 'letter-taken'; Letter = $declared.Letter; Label = $declared.Label; Holder = $holder.FileSystemLabel }
 		}
 	}
 }
@@ -44,18 +65,25 @@ function Get-LabelChange {
 	[CmdletBinding()]
 	param(
 		[Parameter(Mandatory)] [object] $Layout,
-		[Parameter(Mandatory)] [AllowEmptyCollection()] [object[]] $Volumes
+		[Parameter(Mandatory)] [AllowEmptyCollection()] [object[]] $Volumes,
+		[Parameter(Mandatory)] [int] $SystemDisk
 	)
 
-	$declared = @($Layout.System) + @($Layout.Volumes)
-	foreach ($entry in $declared) {
-		$volume = $Volumes | Where-Object { "$($_.DriveLetter)" -ieq $entry.Letter } | Select-Object -First 1
-		if (-not $volume) {
-			continue
-		}
-		if ("$($volume.FileSystemLabel)" -cne $entry.Label) {
+	foreach ($entry in @($Layout.System) + @($Layout.Volumes)) {
+		$volume = $Volumes | Where-Object { "$($_.DriveLetter)" -ieq $entry.Letter -and $_.DiskNumber -eq $SystemDisk } | Select-Object -First 1
+		if ($volume -and "$($volume.FileSystemLabel)" -cne $entry.Label) {
 			[pscustomobject]@{ Letter = $entry.Letter; Current = $volume.FileSystemLabel; Expected = $entry.Label }
 		}
+	}
+}
+
+function Get-CurrentVolume {
+	$disks = @{}
+	foreach ($partition in Get-Partition | Where-Object DriveLetter) {
+		$disks["$($partition.DriveLetter)"] = $partition.DiskNumber
+	}
+	foreach ($volume in Get-Volume | Where-Object DriveLetter) {
+		[pscustomobject]@{ FileSystemLabel = $volume.FileSystemLabel; DriveLetter = "$($volume.DriveLetter)"; DiskNumber = $disks["$($volume.DriveLetter)"] }
 	}
 }
 
@@ -69,20 +97,14 @@ function Get-PartitionPlan {
 	)
 
 	$minimumRemainderBytes = 1GB
-	$missing = @($Layout.Volumes | Where-Object {
-			$label = $_.Label
-			-not ($Volumes | Where-Object { $_.FileSystemLabel -and $_.FileSystemLabel -ieq $label })
-		})
-
+	$problems = @(Get-VolumeProblem -Layout ([pscustomobject]@{ System = @(); Volumes = $Layout.Volumes }) -Volumes $Volumes -SystemDisk $System.DiskNumber)
+	foreach ($taken in $problems | Where-Object Kind -eq 'letter-taken') {
+		throw "Cannot create '$($taken.Label)' on $($taken.Letter): - the letter belongs to '$($taken.Holder)'."
+	}
+	$missingLetters = @($problems | Where-Object Kind -eq 'missing' | ForEach-Object Letter)
+	$missing = @($Layout.Volumes | Where-Object { $_.Letter -in $missingLetters })
 	if ($missing.Count -eq 0) {
 		return
-	}
-
-	foreach ($declared in $missing) {
-		$holder = $Volumes | Where-Object { "$($_.DriveLetter)" -ieq $declared.Letter } | Select-Object -First 1
-		if ($holder) {
-			throw "Cannot create '$($declared.Label)' on $($declared.Letter): - the letter belongs to '$($holder.FileSystemLabel)'."
-		}
 	}
 
 	$targetBytes = [long]($Layout.System.SizeGB * 1GB)
@@ -169,9 +191,9 @@ function Get-CurrentPartitionPlan {
 
 	$systemPartition = Get-Partition -DriveLetter $Layout.system.letter
 	$minimumBytes = if ($CheckMinimum) { (Get-PartitionSupportedSize -DriveLetter $Layout.system.letter).SizeMin } else { 0 }
-	$system = [pscustomobject]@{ SizeBytes = $systemPartition.Size; MinimumBytes = $minimumBytes }
+	$system = [pscustomobject]@{ SizeBytes = $systemPartition.Size; MinimumBytes = $minimumBytes; DiskNumber = $systemPartition.DiskNumber }
 	$freeBytes = (Get-Disk -Number $systemPartition.DiskNumber).LargestFreeExtent
-	Get-PartitionPlan -Layout $Layout -System $system -FreeBytes $freeBytes -Volumes @(Get-Volume)
+	Get-PartitionPlan -Layout $Layout -System $system -FreeBytes $freeBytes -Volumes @(Get-CurrentVolume)
 }
 
 function Write-PartitionPlan {
@@ -234,22 +256,21 @@ function Sync-Volume {
 	[CmdletBinding()]
 	param([Parameter(Mandatory)] [object] $Layout)
 
-	$volumes = @(Get-Volume)
-	$problems = @(Get-VolumeProblem -Layout $Layout -Volumes $volumes)
+	$volumes = @(Get-CurrentVolume)
+	$systemDisk = (Get-Partition -DriveLetter $Layout.System.Letter).DiskNumber
+	$problems = @(Get-VolumeProblem -Layout $Layout -Volumes $volumes -SystemDisk $systemDisk)
 	foreach ($problem in $problems) {
 		switch ($problem.Kind) {
-			'missing' { Write-Warning "No volume labelled '$($problem.Label)'." }
-			'duplicate-label' { Write-Warning "More than one volume is labelled '$($problem.Label)'." }
-			'wrong-letter' { Write-Warning "'$($problem.Label)' is on $($problem.Current): but belongs on $($problem.Expected):." }
-			'letter-taken' { Write-Warning "'$($problem.Label)' belongs on $($problem.Expected):, which '$($problem.Holder)' is using." }
+			'missing' { Write-Warning "No volume on $($problem.Letter): for '$($problem.Label)'." }
+			'letter-taken' { Write-Warning "$($problem.Letter): belongs to '$($problem.Label)', but '$($problem.Holder)' on another disk is using it." }
 		}
 	}
 	if ($problems.Count -gt 0) {
-		throw 'Volumes do not match layout.yaml.'
+		throw 'Volumes do not match system.yaml.'
 	}
 
 	$isAdministrator = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-	foreach ($change in @(Get-LabelChange -Layout $Layout -Volumes $volumes)) {
+	foreach ($change in @(Get-LabelChange -Layout $Layout -Volumes $volumes -SystemDisk $systemDisk)) {
 		if ($isAdministrator) {
 			Set-Volume -DriveLetter $change.Letter -NewFileSystemLabel $change.Expected
 		}
@@ -259,4 +280,4 @@ function Sync-Volume {
 	}
 }
 
-Export-ModuleMember -Function Get-VolumeProblem, Get-LabelChange, Get-PartitionPlan, Invoke-PartitionPlan, Get-PartitionAction, Get-CurrentPartitionPlan, Sync-Partition, Sync-Volume
+Export-ModuleMember -Function ConvertFrom-Size, ConvertTo-Layout, Get-VolumeProblem, Get-LabelChange, Get-PartitionPlan, Invoke-PartitionPlan, Get-PartitionAction, Get-CurrentPartitionPlan, Sync-Partition, Sync-Volume

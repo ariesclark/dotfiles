@@ -1,14 +1,29 @@
 {{ if eq .chezmoi.os "windows" -}}
 # reruns when windows/ changes: {{ template "glob-hash" (joinPath .chezmoi.workingTree "windows" "*.psm1") }}
 $ErrorActionPreference = 'Stop'
-foreach ($module in 'volumes', 'environment', 'scoop', 'placements') {
+foreach ($module in 'volumes', 'pagefile', 'packages', 'scoop', 'mounts') {
 	Import-Module (Join-Path '{{ joinPath .chezmoi.workingTree "windows" }}' "$module.psm1") -Force
 }
-$layout = @'
-{{ (omit .layout "state") | toJson }}
+$system = @'
+{{ (pick .system "volumes" "install") | toJson }}
 '@ | ConvertFrom-Json
-Sync-Volume -Layout $layout
-Sync-Environment -Variables $layout.environment
-Install-Scoop -Root $layout.scoop
-Install-Placement -Placements $layout.placements
+$groups = @'
+{{ .groups | toJson }}
+'@ | ConvertFrom-Json
+$apps = @'
+{{ .apps | toJson }}
+'@ | ConvertFrom-Json
+$selected = @'
+{{ .machine.groups | toJson }}
+'@ | ConvertFrom-Json
+Sync-Volume -Layout (ConvertTo-Layout -Volumes $system.volumes -SystemLetter $env:SystemDrive)
+$memoryBytes = (Get-CimInstance Win32_PhysicalMemory | Measure-Object -Property Capacity -Sum).Sum
+$pagefile = Get-PagefileDeclaration -Volumes $system.volumes -MemoryBytes $memoryBytes
+if ($pagefile) {
+	Sync-Pagefile -Pagefile $pagefile
+}
+Install-Scoop -Root $system.install.scoop
+$packages = Get-PackageSet -Groups $groups -Names (Resolve-Group -Groups $groups -Selected @($selected))
+$installed = @(foreach ($source in $packages.PSObject.Properties) { foreach ($id in $source.Value) { "$($source.Name):$id" } })
+Install-Mount -Mounts @(Get-AppMount -Apps $apps -Selected $installed)
 {{ end -}}

@@ -1,19 +1,15 @@
-# Read by templates, never written to ~.
 .claude/settings.yaml
 {{- if ne .chezmoi.os "windows" }}
 AppData
 Documents
 {{- end }}
 {{- if eq .chezmoi.os "windows" }}
-# bash and WSL only
 .bashrc.d
 .profile.d
 .claude/statusline.sh
 .claude/scratch
-# gh reads AppData\Roaming\GitHub CLI on Windows
 .config/gh
 {{-   if not (stat (joinPath .chezmoi.homeDir "AppData/Local/Discord/Update.exe")) }}
-# Discord's settings only once Discord is installed
 AppData/Roaming/discord
 {{-   end }}
 {{- end }}

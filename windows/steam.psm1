@@ -7,7 +7,6 @@ function Get-SteamLibrary {
 		[AllowNull()] [string] $Folders
 	)
 
-	# not Join-Path: it fails when a library's drive is unplugged
 	$libraries = @([System.IO.Path]::Combine($Steam, 'steamapps'))
 	if ($Folders) {
 		foreach ($match in [regex]::Matches($Folders, '"path"\s+"([^"]+)"')) {
@@ -27,7 +26,6 @@ function Get-SteamInstalled {
 	}
 }
 
-# Steam has no silent install: this opens Steam's own dialog for each change, and the download runs in Steam.
 function Invoke-SteamChange {
 	[CmdletBinding()]
 	param(

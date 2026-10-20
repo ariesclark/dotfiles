@@ -1,0 +1,18 @@
+system:
+  volumes:
+    c:
+      label: System
+      size: 100GB
+    d:
+      label: Data
+      size: 500GB
+    e:
+      label: Apps
+      size: fill
+      pagefile: memory
+
+  install:
+    scoop: 'E:\Scoop'
+    winget: 'E:\Apps'
+    configurationModules: 'E:\Cache\WinGet\Modules'
+    record: 'D:\Machine\packages.json'

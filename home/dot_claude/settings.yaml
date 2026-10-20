@@ -1,5 +1,4 @@
-# Read by modify_settings.json, never written to ~ itself (.chezmoiignore).
-settings: # merged over ~/.claude/settings.json; keys Claude Code adds itself are kept
+settings:
   $schema: https://json.schemastore.org/claude-code-settings.json
   env:
     DO_NOT_TRACK: '0'
@@ -72,7 +71,7 @@ settings: # merged over ~/.claude/settings.json; keys Claude Code adds itself ar
         Never create a pull request. This covers `gh pr create` and any equivalent API call, such as `gh api` or
         `curl` POSTing to a `/pulls` endpoint.
 
-linux: # merged over settings on Linux and WSL, where these folders and scripts exist; paths are under ~
+linux:
   statusLine:
     type: command
     command: .claude/statusline.sh

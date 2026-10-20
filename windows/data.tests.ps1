@@ -1,25 +1,39 @@
 BeforeAll {
 	Import-Module (Join-Path $PSScriptRoot 'packages.psm1') -Force
+	Import-Module (Join-Path $PSScriptRoot 'volumes.psm1') -Force
+	Import-Module (Join-Path $PSScriptRoot 'pagefile.psm1') -Force
 	$data = chezmoi --source (Split-Path $PSScriptRoot) data --format json | ConvertFrom-Json
-	$layout = $data.layout
+	$system = $data.system
+	$letters = @($system.volumes.PSObject.Properties.Name | ForEach-Object { $_.ToUpperInvariant() })
 	$groups = $data.groups
 	$apps = $data.apps
+	$mounts = @($apps.PSObject.Properties.Value | ForEach-Object { $_.PSObject.Properties['mounts'] } | Where-Object { $_ } | ForEach-Object { $_.Value })
 	$listed = @($groups.PSObject.Properties.Value | ForEach-Object { $_.PSObject.Properties['apps'] } | Where-Object { $_ } | ForEach-Object { $_.Value })
 }
 
-Describe 'layout.yaml' {
-	It 'never declares two placements for the same link' {
-		$duplicates = $layout.placements.link | Group-Object { $_.ToLowerInvariant() } | Where-Object Count -gt 1
-		$duplicates | Should -BeNullOrEmpty
+Describe 'system.yaml' {
+	It 'declares Windows'' own volume, sizes it can read, and at most one volume that fills the rest' {
+		{ ConvertTo-Layout -Volumes $system.volumes -SystemLetter $env:SystemDrive } | Should -Not -Throw
 	}
 
-	It 'puts every placement target on a declared volume, with an uppercase drive letter' {
-		$letters = $layout.volumes.letter
-		$layout.placements.target | Where-Object { $_.Substring(0, 1) -cnotin $letters } | Should -BeNullOrEmpty
+	It 'puts the pagefile on one volume, with a size it can read' {
+		{ Get-PagefileDeclaration -Volumes $system.volumes -MemoryBytes (32GB) } | Should -Not -Throw
 	}
 
 	It 'installs winget apps to a declared volume, not C:' {
-		$layout.winget.Substring(0, 1) | Should -BeIn @($layout.volumes.letter)
+		$system.install.winget.Substring(0, 1) | Should -BeIn $letters
+		$system.install.winget | Should -Not -BeLike 'C:*'
+	}
+}
+
+Describe 'mounts in apps.yaml' {
+	It 'never declares two mounts from the same folder' {
+		$duplicates = $mounts.from | Group-Object { $_.ToLowerInvariant() } | Where-Object Count -gt 1
+		$duplicates | Should -BeNullOrEmpty
+	}
+
+	It 'mounts every folder to a declared volume, with an uppercase drive letter' {
+		$mounts.to | Where-Object { $_.Substring(0, 1) -cnotin $letters } | Should -BeNullOrEmpty
 	}
 }
 
@@ -52,7 +66,7 @@ Describe 'apps.yaml' {
 
 	It 'gives apps from other sources only install options, since their files are not in a Scoop folder' {
 		$apps.PSObject.Properties | Where-Object { $_.Name -notlike 'scoop:*' } | ForEach-Object {
-			$_.Value.PSObject.Properties.Name | Where-Object { $_ -notin 'location', 'installerType', 'fixedLocation' } | Should -BeNullOrEmpty -Because $_.Name
+			$_.Value.PSObject.Properties.Name | Where-Object { $_ -notin 'location', 'installerType', 'fixedLocation', 'mounts' } | Should -BeNullOrEmpty -Because $_.Name
 		}
 	}
 
@@ -73,9 +87,9 @@ Describe 'apps.yaml' {
 		}
 	}
 
-	It 'only declares a location that differs from the default under layout.winget' {
+	It 'only declares a location that differs from the default under system.install.winget' {
 		foreach ($app in $apps.PSObject.Properties | Where-Object { $_.Value.PSObject.Properties['location'] }) {
-			$default = Join-Path $layout.winget ($app.Name -split ':', 2)[1]
+			$default = Join-Path $system.install.winget ($app.Name -split ':', 2)[1]
 			$app.Value.location | Should -Not -Be $default -Because "$($app.Name) would get that folder anyway"
 		}
 	}
@@ -83,7 +97,7 @@ Describe 'apps.yaml' {
 	It 'only uses known keys, and never empty' {
 		foreach ($app in $apps.PSObject.Properties) {
 			@($app.Value.PSObject.Properties).Count | Should -BeGreaterThan 0 -Because $app.Name
-			$app.Value.PSObject.Properties.Name | Where-Object { $_ -notin 'removeAppx', 'registry', 'scripts', 'startup', 'shims', 'protocols', 'location', 'installerType', 'fixedLocation' } | Should -BeNullOrEmpty -Because $app.Name
+			$app.Value.PSObject.Properties.Name | Where-Object { $_ -notin 'removeAppx', 'registry', 'scripts', 'startup', 'shims', 'protocols', 'mounts', 'location', 'installerType', 'fixedLocation' } | Should -BeNullOrEmpty -Because $app.Name
 			$app.Value.PSObject.Properties | Where-Object { @($_.Value).Count -eq 0 } | Should -BeNullOrEmpty -Because $app.Name
 		}
 	}

@@ -2,10 +2,6 @@ Set-StrictMode -Version Latest
 
 Import-Module (Join-Path $PSScriptRoot 'scoop.psm1') -Force
 
-# The registrations a template can't do: removing stale packages, running the .reg and .ps1 files apps ship
-# in their own folders, and copying shims. Startup entries and URL handlers are rendered into user.reg instead.
-
-# A list-valued key of a YAML object, or nothing when the key is absent.
 function Get-ListProperty {
 	param([object] $Object, [string] $Key)
 
@@ -113,8 +109,6 @@ function Invoke-RegistrationPlan {
 				}
 			}
 			'script' {
-				# A vendor's script can fail for its own reasons (PowerToys' can't re-add a package that's running);
-				# that shouldn't stop the other apps' registrations.
 				$packages = @($step.SkipWhenRegistered | Where-Object { Test-Path -LiteralPath $_ })
 				if ($packages -and $packages.Count -eq $step.SkipWhenRegistered.Count -and -not ($packages | Where-Object { -not (Test-AppxRegistered -Identity (Get-AppxIdentity -Path $_)) })) {
 					continue
@@ -144,11 +138,11 @@ function Sync-Registration {
 	[CmdletBinding()]
 	param(
 		[Parameter(Mandatory)] [object] $Apps,
-		[Parameter(Mandatory)] [object] $Layout
+		[Parameter(Mandatory)] [object] $Install
 	)
 
-	Install-Scoop -Root $Layout.scoop
-	$plan = @(Get-RegistrationPlan -Apps $Apps -Installed @(Get-ScoopApp) -ScoopRoot $Layout.scoop)
+	Install-Scoop -Root $Install.scoop
+	$plan = @(Get-RegistrationPlan -Apps $Apps -Installed @(Get-ScoopApp) -ScoopRoot $Install.scoop)
 	Invoke-RegistrationPlan -Plan $plan
 }
 

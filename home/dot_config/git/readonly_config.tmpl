@@ -2,9 +2,7 @@
 [user]
 	name = Aries Clark
 	email = me@ariesclark.com
-{{- /* A fresh machine's first apply renders before op is installed; the next apply adds the key. */ -}}
 {{- if lookPath "op" }}
-{{- /* 1Password item "Git Signing", by id so a rename doesn't break it. */}}
 	signingkey = {{ onepasswordRead "op://personal/rczscaa2ex5o5gqxuoo5aa6xmu/public key" }}
 {{- end }}
 [gpg]

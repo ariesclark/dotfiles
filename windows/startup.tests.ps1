@@ -42,3 +42,33 @@ Describe 'Get-StartupChange' {
 		Get-StartupChange -Disabled @('Docker Desktop') -Entries $entries | Should -BeNullOrEmpty
 	}
 }
+
+Describe 'Test-LogonTrigger' {
+	BeforeAll {
+		function New-Trigger([string] $Class, [switch] $WithCimClass) {
+			$trigger = [pscustomobject]@{}
+			$trigger.PSObject.TypeNames.Insert(0, "Microsoft.Management.Infrastructure.CimInstance#Root/Microsoft/Windows/TaskScheduler/$Class")
+			if ($WithCimClass) {
+				$trigger | Add-Member CimClass ([pscustomobject]@{ CimClassName = $Class })
+			}
+			$trigger
+		}
+	}
+
+	It 'knows a logon trigger by its CIM class' {
+		Test-LogonTrigger (New-Trigger MSFT_TaskLogonTrigger -WithCimClass) | Should -BeTrue
+	}
+
+	It 'knows a logon trigger that arrives without its CIM class, as under winget configure' {
+		Test-LogonTrigger (New-Trigger MSFT_TaskLogonTrigger) | Should -BeTrue
+	}
+
+	It 'turns down an empty trigger, which some tasks only admins see have' {
+		& { Set-StrictMode -Version Latest; Test-LogonTrigger $null } | Should -BeFalse
+	}
+
+	It 'turns down other triggers' {
+		Test-LogonTrigger (New-Trigger MSFT_TaskDailyTrigger -WithCimClass) | Should -BeFalse
+		Test-LogonTrigger (New-Trigger MSFT_TaskBootTrigger) | Should -BeFalse
+	}
+}

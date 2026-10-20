@@ -13,7 +13,6 @@ function Install-Scoop {
 		Remove-Item -LiteralPath $installer
 	}
 
-	# After a Windows reset Scoop is still on E:, but the user PATH entry the installer made is gone.
 	$shims = Join-Path $Root 'shims'
 	$userPath = [Environment]::GetEnvironmentVariable('PATH', 'User')
 	if (($userPath -split ';') -notcontains $shims) {

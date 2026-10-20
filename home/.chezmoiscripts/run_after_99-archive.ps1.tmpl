@@ -1,9 +1,6 @@
 {{ if eq .chezmoi.os "windows" -}}
-# Every apply: rebuild home/.archive/ (git-ignored) with what chezmoi renders on this machine, from one archive so
-# 1Password is asked once rather than once per file.
 $ErrorActionPreference = 'Stop'
 Import-Module '{{ joinPath .chezmoi.workingTree "windows" "archive.psm1" }}' -Force
-# The apply that runs this holds chezmoi's state lock, so the archive uses a throwaway state file.
 $state = Join-Path $env:TEMP "chezmoi-archive-$PID.boltdb"
 $archive = Join-Path $env:TEMP "chezmoi-archive-$PID.tar"
 try {

@@ -4,7 +4,6 @@ foreach ($module in 'scoop', 'winget', 'steam') {
 	Import-Module (Join-Path $PSScriptRoot "$module.psm1") -Force
 }
 
-# A list-valued key of a YAML object, or nothing when the key is absent.
 function Get-ListProperty {
 	param([object] $Object, [string] $Key)
 
@@ -72,9 +71,6 @@ function Get-PackageSet {
 	[pscustomobject]$set
 }
 
-# The install options apps.yaml declares for one source's apps, keyed by package id:
-# Location (winget --location), InstallerType (winget --installer-type), and FixedLocation (an installer that
-# can't choose a folder, so it's given none).
 function Get-InstallOption {
 	[CmdletBinding()]
 	param(
@@ -97,9 +93,6 @@ function Get-InstallOption {
 	$options
 }
 
-# Where a winget app installs: what apps.yaml declares, else its own folder under the root (layout.winget).
-# MSIX installs and Store apps get none: Windows keeps them in C:\Program Files\WindowsApps. Neither do apps whose
-# installer has a fixed folder (fixedLocation); a --location it can't take would only make winget fail.
 function Resolve-InstallLocation {
 	[CmdletBinding()]
 	param(
@@ -143,20 +136,20 @@ function Sync-Package {
 		[Parameter(Mandatory)] [object] $Groups,
 		[Parameter(Mandatory)] [object] $Apps,
 		[Parameter(Mandatory)] [string[]] $Selected,
-		[Parameter(Mandatory)] [object] $Layout
+		[Parameter(Mandatory)] [object] $Install
 	)
 
 	$names = Resolve-Group -Groups $Groups -Selected $Selected
 	$desired = Get-PackageSet -Groups $Groups -Names $names
-	$previous = if (Test-Path -LiteralPath $Layout.state) { Get-Content -LiteralPath $Layout.state -Raw | ConvertFrom-Json } else { $null }
+	$previous = if (Test-Path -LiteralPath $Install.record) { Get-Content -LiteralPath $Install.record -Raw | ConvertFrom-Json } else { $null }
 	$change = Get-PackageChange -Desired $desired -Previous $previous
 
-	Install-Scoop -Root $Layout.scoop
+	Install-Scoop -Root $Install.scoop
 	$declared = Get-InstallOption -Apps $Apps -Source winget
 	$wingetOptions = @{}
 	foreach ($id in $change.install.winget) {
 		$wingetOptions[$id] = [pscustomobject]@{
-			Location = Resolve-InstallLocation -Id $id -Source winget -Option $declared[$id] -Root $Layout.winget
+			Location = Resolve-InstallLocation -Id $id -Source winget -Option $declared[$id] -Root $Install.winget
 			InstallerType = if ($declared[$id]) { $declared[$id].InstallerType } else { $null }
 		}
 	}
@@ -168,10 +161,10 @@ function Sync-Package {
 	if ($failures.Count -gt 0) {
 		throw "These packages did not install: $($failures -join ', '). Nothing was recorded; fix them and apply again."
 	}
-	Invoke-SteamChange -Steam (Join-Path $Layout.scoop 'apps\steam\current') -Install $change.install.steam -Uninstall $change.uninstall.steam
+	Invoke-SteamChange -Steam (Join-Path $Install.scoop 'apps\steam\current') -Install $change.install.steam -Uninstall $change.uninstall.steam
 
-	New-Item -ItemType Directory -Force -Path (Split-Path $Layout.state) | Out-Null
-	$desired | ConvertTo-Json | Set-Content -LiteralPath $Layout.state -Encoding utf8
+	New-Item -ItemType Directory -Force -Path (Split-Path $Install.record) | Out-Null
+	$desired | ConvertTo-Json | Set-Content -LiteralPath $Install.record -Encoding utf8
 }
 
 Export-ModuleMember -Function Resolve-Group, Get-PackageSet, Get-InstallOption, Resolve-InstallLocation, Get-PackageChange, Sync-Package

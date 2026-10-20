@@ -4,8 +4,8 @@ Import-Module '{{ joinPath .chezmoi.workingTree "windows" "registrations.psm1" }
 $apps = @'
 {{ .apps | toJson }}
 '@ | ConvertFrom-Json
-$layout = @'
-{{ (pick .layout "scoop" "state") | toJson }}
+$install = @'
+{{ .system.install | toJson }}
 '@ | ConvertFrom-Json
-Sync-Registration -Apps $apps -Layout $layout
+Sync-Registration -Apps $apps -Install $install
 {{ end -}}

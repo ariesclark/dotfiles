@@ -10,7 +10,7 @@ groups:
       - scoop:main/pwsh
       - scoop:main/1password-cli
       - scoop:extras/powertoys
-      - scoop:extras/firefox
+      - scoop:extras/chrome
       - scoop:extras/vlc
       - scoop:extras/imageglass
       - winget:AgileBits.1Password
@@ -34,7 +34,7 @@ groups:
       - scoop:extras/crystaldiskmark
       - scoop:extras/windirstat
 
-  games-base: # launchers that games install through
+  games-base:
     needs:
       - base
     apps:

@@ -1,0 +1,54 @@
+{{ if eq .chezmoi.os "windows" -}}
+# reruns when either file changes: {{ includeTemplate "dot_config/windows/readonly_configuration.winget.tmpl" . | sha256sum }} {{ includeTemplate "dot_config/windows/readonly_taskbar.xml.tmpl" . | sha256sum }}
+$ErrorActionPreference = 'Stop'
+$modules = '{{ .system.install.configurationModules }}'
+New-Item -ItemType Directory -Force -Path $modules | Out-Null
+$pinned = [ordered]@{ 'Microsoft.Windows.Developer' = '0.4.0-alpha'; 'PSDscResources' = '2.12.0.0'; 'PSDesiredStateConfiguration' = '2.0.8' }
+foreach ($name in $pinned.Keys) {
+	$version = $pinned[$name]
+	if (-not (Test-Path -LiteralPath (Join-Path $modules "$name\$($version.Split('-')[0])"))) {
+		pwsh -NoProfile -Command "Save-PSResource -Name '$name' -Version '$version' -Prerelease -Repository PSGallery -TrustRepository -Path '$modules'"
+		if ($LASTEXITCODE) {
+			throw "Could not save $name $version."
+		}
+	}
+}
+winget configure --enable
+if ($LASTEXITCODE) {
+	throw 'Could not turn on winget configure.'
+}
+winget configure --file '{{ joinPath .chezmoi.homeDir ".config" "windows" "configuration.winget" }}' --module-path $modules --accept-configuration-agreements --disable-interactivity
+if ($LASTEXITCODE) {
+	throw 'winget configure failed.'
+}
+# https://learn.microsoft.com/en-us/windows/configuration/taskbar/pinned-apps (#leaveempty)
+$path = '{{ joinPath .chezmoi.homeDir ".config" "windows" "taskbar.xml" }}'
+$declared = [System.IO.File]::ReadAllText($path)
+[xml]$empty = $declared
+$namespaces = [System.Xml.XmlNamespaceManager]::new($empty.NameTable)
+$namespaces.AddNamespace('taskbar', 'http://schemas.microsoft.com/Start/2014/TaskbarLayout')
+$list = $empty.SelectSingleNode('//taskbar:TaskbarPinList', $namespaces)
+$list.RemoveAll()
+$placeholder = $empty.CreateElement('taskbar', 'DesktopApp', 'http://schemas.microsoft.com/Start/2014/TaskbarLayout')
+$placeholder.SetAttribute('DesktopApplicationLinkPath', '#leaveempty')
+[void]$list.AppendChild($placeholder)
+function Write-Layout([string] $Content) {
+	$file = Get-Item -LiteralPath $path
+	$file.IsReadOnly = $false
+	[System.IO.File]::WriteAllText($path, $Content, [System.Text.UTF8Encoding]::new($false))
+	(Get-Item -LiteralPath $path).LastWriteTime = Get-Date
+	(Get-Item -LiteralPath $path).IsReadOnly = $true
+}
+function Restart-Explorer {
+	Stop-Process -Name explorer -Force -ErrorAction SilentlyContinue
+	Start-Sleep -Seconds 2
+	if (-not (Get-Process explorer -ErrorAction SilentlyContinue)) {
+		Start-Process explorer.exe
+	}
+	Start-Sleep -Seconds 12
+}
+Write-Layout $empty.OuterXml
+Restart-Explorer
+Write-Layout $declared
+Restart-Explorer
+{{ end -}}

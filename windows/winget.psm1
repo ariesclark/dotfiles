@@ -26,9 +26,6 @@ function Test-WingetPackage {
 	$LASTEXITCODE -eq 0
 }
 
-# Source is 'winget' or 'msstore': both go through winget, from different catalogs.
-# Options maps a package id to its install options from apps.yaml (Location, InstallerType); without them,
-# the installer picks where it goes (usually C:).
 function Invoke-WingetChange {
 	[CmdletBinding()]
 	param(

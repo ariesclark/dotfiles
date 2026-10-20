@@ -1,6 +1,5 @@
 BeforeAll {
 	$source = Split-Path $PSScriptRoot
-	# Everything chezmoi would write under ~, rendered from this repo by one chezmoi process, so 1Password asks once.
 	$archive = Join-Path $TestDrive 'target.tar'
 	$rendered = Join-Path $TestDrive 'rendered'
 	New-Item -ItemType Directory -Force -Path $rendered | Out-Null
@@ -28,20 +27,18 @@ Describe 'generated label' {
 		$repository = Split-Path $PSScriptRoot
 	}
 
-	It 'opens <Leaf> with the file it was generated from and when that file last changed, in its own comment syntax' -ForEach @($targets | Where-Object { $_.Target -notlike '*.json' }) {
-		# gh's Windows copy only renders the shared file, so the label sends you to that one.
+	It 'opens <Leaf> with the source file to change instead, in its own comment syntax' -ForEach @($targets | Where-Object { $_.Target -notlike '*.json' }) {
 		$sourceFile = if ($Target -like '*\GitHub CLI\config.yml') { Join-Path $repository 'home\dot_config\gh\config.yml.tmpl' } else { chezmoi --source $repository source-path $Target }
-		$changed = (Get-Item -LiteralPath $sourceFile).LastWriteTimeUtc.ToString('yyyy-MM-ddTHH:mm:ss') + 'Z'
-		$comment = switch -Wildcard ($Target) {
-			'*.reg' { { param($line) "; $line" } }
-			'*.xml' { { param($line) "<!-- $line -->" } }
-			'*.md' { { param($line) "<!-- $line -->" } }
-			default { { param($line) "# $line" } }
+		$label = 'This file is managed by Chezmoi. To change it, update:', $sourceFile
+		$expected = switch -Wildcard ($Target) {
+			'*.reg' { $label | ForEach-Object { "; $_" } }
+			'*.xml' { @('<!--') + $label + '-->' }
+			'*.md' { @('<!--') + $label + '-->' }
+			default { $label | ForEach-Object { "# $_" } }
 		}
 		$lines = @((Render $Target.Substring($HOME.Length + 1)) -split "`n")
 		$first = if ($lines[0] -match '^(#!|<\?xml |Windows Registry Editor )') { 1 } else { 0 }
-		$lines[$first] | Should -BeExactly (& $comment "This file is managed by Chezmoi from $sourceFile.")
-		$lines[$first + 1] | Should -BeExactly (& $comment "Last updated: $changed")
+		$lines[$first..($first + $expected.Count - 1)] | Should -BeExactly $expected
 	}
 
 	It 'leaves <Leaf> as plain JSON, which has no comments' -ForEach @($targets | Where-Object { $_.Target -like '*.json' }) {
@@ -60,12 +57,6 @@ Describe 'generated label' {
 Describe 'user.reg' {
 	It 'is a registry file reg import accepts' {
 		($reg -split "`n")[0] | Should -BeExactly 'Windows Registry Editor Version 5.00'
-	}
-
-	It 'sets the taskbar settings from desktop.yaml as DWORDs' {
-		$reg | Should -Match '(?m)^"TaskbarAl"=dword:00000001$'
-		$reg | Should -Match '(?m)^"SearchboxTaskbarMode"=dword:00000000$'
-		$reg | Should -Match '(?m)^"ShowTaskViewButton"=dword:00000000$'
 	}
 
 	It 'starts installed Scoop apps from their current folder, quoting the path and escaping backslashes' {
@@ -93,7 +84,7 @@ Describe 'taskbar.xml' {
 		$layout.LayoutModificationTemplate.CustomTaskbarLayoutCollection.PinListPlacement | Should -BeExactly 'Replace'
 	}
 
-	It 'pins desktop.yaml''s apps in order, by the right kind of id' {
+	It 'pins its apps in order, by the right kind of id' {
 		$pins.Count | Should -Be 6
 		$pins[0].DesktopApplicationID | Should -BeExactly 'Microsoft.Windows.Explorer'
 		$pins[1].LocalName | Should -BeExactly 'UWA'
@@ -118,7 +109,7 @@ Describe 'git' {
 	}
 
 	It 'reads the signing key from 1Password instead of keeping it in the repo' {
-		Get-Content (Join-Path $source 'home\dot_config\git\config.tmpl') -Raw | Should -Not -Match 'AAAAC3Nza'
+		Get-Content (Join-Path $source 'home\dot_config\git\readonly_config.tmpl') -Raw | Should -Not -Match 'AAAAC3Nza'
 		$config | Should -Match '(?m)^\tsigningkey = ssh-ed25519 AAAAC3Nza\S+$'
 	}
 
