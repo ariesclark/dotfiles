@@ -43,4 +43,5 @@ This repository contains the configuration of a Windows computer. [chezmoi](http
 
 - Keep on C: only the data that you cannot move.
 - To see the changes before you apply them, type `chezmoi diff`.
+- To see all the files that chezmoi makes, type `pwsh windows/archive.ps1`. The files go into `home/.archive`.
 - To do the tests, type `Invoke-Pester windows`.

@@ -46,3 +46,19 @@ Describe 'Update-Archive' {
 		@(Get-ChildItem -Force -LiteralPath $root).Name | Sort-Object | Should -Be @('.archive', 'rendered', 'target.tar')
 	}
 }
+
+Describe 'archive command' {
+	BeforeAll {
+		$repository = Split-Path $PSScriptRoot
+	}
+
+	It 'is not part of an apply, so an apply asks 1Password once' {
+		Get-ChildItem (Join-Path $repository 'home\.chezmoiscripts') -File |
+			Where-Object { (Get-Content -Raw -LiteralPath $_.FullName) -match 'chezmoi[^\r\n]*\barchive\b' } |
+			ForEach-Object Name | Should -BeNullOrEmpty
+	}
+
+	It 'is a script of its own in the windows folder' {
+		Join-Path $repository 'windows\archive.ps1' | Should -Exist
+	}
+}
