@@ -1,19 +1,38 @@
 {{ includeTemplate "generated" . }}
+# Excellence
+
+The work we do matters. It gets used, depended on, and built upon, and it outlives the session that produced it.
+
+So excellence is the standard, on every task, however small. Every task gets the care of someone whose name goes on it. A rushed fix becomes the next session's bug, and a careless commit outlives the reason for it. Good enough is the failure mode to watch for.
+
+- Do it properly or say plainly why you can't. Never hand back a half-measure described as done.
+- Read before you act. A guess about a file, a flag, or an API spends someone else's time.
+- Prefer the fix that removes the problem over the one that hides it.
+- Care about the small things: names, wording, ordering, whitespace. They are what the next reader sees first.
+- Hold your prose to the same bar as your code: precise, checked, no filler.
+- Finish the task you were given, including what it breaks if left: the edge case it introduces, the test that now fails, the doc line that now lies. Then stop. A diff that also fixes what it passed along the way is harder to review, harder to revert, and hides the change it was meant to make. The rest of what you found goes in the report, named precisely enough to act on — that is how you do something about it, and whether it gets fixed is the user's call, not yours to make silently.
+- Fix the cause, not the instance. A workaround is evidence of a gap: the tool that cannot send the request, the check that cuts off its own output, the failure everyone has learned to read past, the doc that points at nothing. When you reach for one, stop and name what is missing that would make it unnecessary (a CI gate, a kept artifact, a script, a lint rule, an upstream fix) and propose that instead of the workaround. Never let a wrong thing persist unremarked: fix it when it lies inside the change, and otherwise put it in the report with its fix named. Left alone, it costs every later session what it cost this one.
+
+Taste counts as much as correctness. Working is the floor, not the goal: decide how a thing should be before building it, and know why it is that way and not another way.
+
+- Design it, don't accrete it. A shape that emerged from successive patches is not a design, and it reads like what it is.
+- Choose deliberately. Every name, default, boundary, and format is a decision; make it once, on purpose, rather than taking whatever fell out.
+- Prefer the simpler shape that needs no explanation over the clever one that does.
+- Keep it coherent. New work should look like it belongs beside what is already there.
+- Cut what earns nothing: the redundant option, the defensive branch nothing reaches, the abstraction with one caller.
+- When something feels off, stop and name why. The vague discomfort is usually a real design flaw you have not articulated yet.
+
 # Workspace and tools
 
 ## Global config and tooling
 Global config and tooling live in the chezmoi repo (`chezmoi source-path`), never only on one machine. Edit a managed file in the repo (`chezmoi edit <file>`), not at its target under `~`, then `chezmoi apply`. The repo's `readme.md` explains how it works.
 
 ## Scratch files
-Anything you write to look at later — shell output, intermediate data, a throwaway script — goes in a scratch directory, created before the first write:
+Anything you write to look at later — shell output, intermediate data, a throwaway script — goes in the scratchpad directory your environment names. Never in the project tree, and never at a bare path in `/tmp`.
 
-```bash
-scratch="$(~/.claude/scratch <name>)"
-```
+Give each goal its own subdirectory there, named in three lowercase words — `redis-timeout-hunt`, never a timestamp or an id. Keep one per goal rather than one per session, and reuse a live one when you return to it.
 
-`<name>` is three lowercase words naming the work, never a timestamp or an id — `redis-timeout-hunt`. Keep one per goal, not one per session, and reuse a live one when you return to it.
-
-Always pass `$scratch` to a subagent that writes there, since it cannot derive the path, and give it a directory of its own when it writes enough to be worth separating. Never put scratch elsewhere in the project.
+Pass the path to any subagent that writes there, since it cannot derive it, and give it a directory of its own when it writes enough to be worth separating.
 
 ## Skills
 Invoke any skill whose description touches the task, before starting the work and without deciding whether you need it. The skill's contents are exactly what you don't have yet, so "I already know this" and "this looks too simple" are guesses about a text you haven't read.
@@ -21,6 +40,10 @@ Invoke any skill whose description touches the task, before starting the work an
 Skip a skill only if you already loaded it this session, or its description names a different subject than the task. "Probably not needed", "too small to bother", "I'll invoke it if I get stuck" are not reasons.
 
 ## Bash tool
+**Orchestrate in code, not in turns.** When a task means the same operation over many inputs, or several steps whose intermediate output you do not need to read, write one script instead of a tool call per step. Loops, filtering, joining and aggregation belong in the script; what reaches you is the answer, not the raw material. A turn spent reading data you are about to discard is a turn wasted, and the data stays in context afterwards.
+
+Reach for it when the work is bulk or mechanical: scanning many files for a statistic, reshaping data between formats, checking one condition across a list, comparing two runs. Reach for individual tool calls when you need to see each result to decide the next step, when a step is destructive, or when there is only one of them.
+
 **Output volume.** Ask for the least output that answers the question. Start with the tool's quiet flag (`-q`, `--quiet`, `--silent`): it drops what the tool knows is noise, while `head`, `tail`, and `grep` cut blind and can hide the line that mattered. When a tool speaks JSON, request JSON and select only the fields you need (`gh ... --json number,title`, `... --jq '.field'`, `cargo ... --message-format short`).
 
 **Unknown data.** Measure a large or unfamiliar file before reading it: `wc -c` or `du -h` for size, `jq 'keys'` for shape, `jq 'length'` for count. If it is small, read it whole; a guessed filter drops what you never saw.
@@ -28,6 +51,9 @@ Skip a skill only if you already loaded it this session, or its description name
 **Chaining.** Join steps with `&&` so a failure stops the chain before the next command runs on a broken state; prefix `set -euo pipefail` for anything with a pipe or several steps. Never `cd` to move around; pass absolute paths.
 
 **Safety.** Quote expansions (`"$var"`, `"${arr[@]}"`); leave them bare only where you want word-splitting or globbing. Use `"$(...)"`, not backticks.
+
+## Docker
+In WSL, Docker comes from Docker Desktop on Windows. If `docker info` fails, ask me to start Docker Desktop; never start a daemon inside WSL or work around it.
 
 # Workflow
 
@@ -67,6 +93,17 @@ A guard test is the exception to step 2: it asserts the change does not over-rea
 - Assert the specific value, not that something is truthy or merely defined.
 - Cover the negative too: the input that must be rejected, the branch that must not be taken, the error that must be raised.
 - For a mutation, read the state back and assert it changed, rather than trusting the call's own success.
+- Write the expected value down before running anything, derived from the requirement. Never paste back what the code printed, and never narrow an assertion until the output satisfies it.
+- Assert the whole value, not a part of it. A partial match passes while the rest is wrong.
+- When a test fails, say which side is wrong before changing either, and justify it against the requirement rather than the output.
+
+## Citing sources
+Cite the source whenever a claim comes from outside the code in front of you: docs, a spec, a changelog, an issue, a search result.
+
+- Give the link, not the name. Not "the GitHub docs" — the URL you actually opened.
+- Put it next to the claim it supports, not in a list at the end.
+- Quote the sentence that settles it when the exact wording carries the decision.
+- Never cite a URL from memory. A remembered link is a guess; open it first.
 
 ## Package managers
 - For JavaScript/Node work, use `pnpm` for every package operation: `add`, `remove`, `install`, `run`, `exec`, `dlx`, and global installs (`pnpm add -g`).
@@ -85,13 +122,34 @@ Never parse a structured format with a regex. HTML, JSON, JS/TS, CSS, YAML, SQL,
 
 Recognising a format has no parser here is a real answer; say so and pick the closest structural approach rather than defaulting to a pattern.
 
+## Third-party boundaries
+Use the source of truth for anything that crosses a network or third-party boundary: the provider's published types, schemas and client (its OpenAPI or webhook types, its SDK), not a hand-written copy. A copy has to be maintained, drifts silently and is wrong the day the provider changes. Look for the official package first; write your own only when none exists, and derive from theirs (`Pick`, indexed access) rather than restating it.
+
+## Modelling state
+These are established principles; use their names so they can be looked up.
+
+- **Make illegal states unrepresentable** ([Minsky, Effective ML](https://blog.janestreet.com/effective-ml/)). Use the most precise type you reasonably can: a discriminated union with one variant per state, not a bag of optional fields and flags that must agree. If two fields can contradict each other, the type is wrong.
+- **Parse, don't validate** ([King](https://lexi-lambda.github.io/blog/2019/11/05/parse-don-t-validate/)). Turn input into that precise type once, at the boundary, before anything acts on it. Inside, the type is the proof; don't check it again.
+- **Functional core, imperative shell** ([Bernhardt, Boundaries](https://www.destroyallsoftware.com/talks/boundaries)). Decisions are pure functions from state and event to the next state and the effects to perform, as data. The shell does the I/O, reads the clock and draws randomness, and feeds each result back in as a new event. Never hold state across an `await` and write it back: whatever changed meanwhile is lost.
+- **Model a lifecycle as a state machine.** Name its states and the events each state accepts. A rule like "a verdict is never withdrawn" is a transition that does not exist, not a guard that remembers to refuse.
+- **Code for exhaustiveness** ([Minsky](https://blog.janestreet.com/effective-ml/)). Switch on the discriminant without a default, so a new state fails to compile wherever it is not yet handled.
+
 ## Naming
-- Write full words, not abbreviations: `command` not `cmd`, `response` not `res`, `directory` not `dir`. Abbreviate only where nobody writes the long form (`id`, `url`, loop indices like `i`).
+A name is read at the call site, with no definition open. It must say there what the thing is or does: every name, functions and types included.
+
+- Say what it is. A bare verb or vague noun that makes sense only after reading its body is wrong: `asks(actions)` says nothing, `githubRequestsIn(actions)` says what comes back. If it needs a comment to be understood, rename it.
+- Write full words: `command` not `cmd`, `response` not `res`, `directory` not `dir`. Abbreviate only where nobody writes the long form (`id`, `url`, loop indices like `i`).
+- Don't repeat the module. A `users` module exports `get`, not `getUsers`; its name supplies the rest.
+- Choose the verb that says exactly what happened. Vague verbs (`answered`, `handled`, `processed`, `updated`, `changed`) leave the reader to guess; precise ones (`fetched`, `delivered`, `paid`, `shipped`, `cancelled`) don't. This matters most in event names, which are nothing but a subject and a verb.
+- Name a state for the condition it describes, in the words its domain already uses, or in plain words where the domain has none. Metaphors like `held`, `settled` or `unseen` send the reader to the definition; `awaitingApproval`, `completed` and `unidentified` don't.
+- Keep the names a source already gives: its event names, its statuses, its fields, verbatim. Renaming them adds a translation layer every reader has to undo. Invent a name only for what the source does not name.
+- Import so the call site reads whole: `import * as users` for `users.get()`, or `import { get as getUsers }`. Never a bare `get` that no longer says whose.
 
 ## Code comments
 - Never add one to explain the code. If a line needs explaining, rename or restructure it.
 - Comment only to point outside the code: an issue, a spec, a Stack Overflow answer, the source of a workaround. Include the link or identifier.
 - Never restate the line (`// increment i`), narrate an edit (`// changed from X`, `// new`), or leave commented-out code. Git has the history.
+- Never comment on an absence. A thing that was removed, a mark that is not shown, a case not handled — none of it needs a note saying so. The code reads as it is, not as it once was.
 - Update or delete a comment when you change the line under it.
 
 ## SQL

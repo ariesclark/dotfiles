@@ -1,3 +1,4 @@
 .gitconfig
 .config/git/windows
 .config/git/wsl
+.claude/scratch

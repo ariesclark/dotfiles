@@ -7,7 +7,6 @@ Documents
 .bashrc.d
 .profile.d
 .claude/statusline.sh
-.claude/scratch
 .config/gh
 {{-   if not (stat (joinPath .chezmoi.homeDir "AppData/Local/Discord/Update.exe")) }}
 AppData/Roaming/discord
