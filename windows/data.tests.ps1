@@ -24,6 +24,12 @@ Describe 'system.yaml' {
 		$system.install.winget.Substring(0, 1) | Should -BeIn $letters
 		$system.install.winget | Should -Not -BeLike 'C:*'
 	}
+
+	It 'gives the WSL distribution one drive letter that no volume uses' {
+		$system.wsl.distribution | Should -BeExactly 'Ubuntu'
+		$system.wsl.drive | Should -Match '^[a-z]$'
+		$system.wsl.drive.ToUpperInvariant() | Should -Not -BeIn $letters
+	}
 }
 
 Describe 'mounts in apps.yaml' {
@@ -92,6 +98,16 @@ Describe 'apps.yaml' {
 			$default = Join-Path $system.install.winget ($app.Name -split ':', 2)[1]
 			$app.Value.location | Should -Not -Be $default -Because "$($app.Name) would get that folder anyway"
 		}
+	}
+
+	It 'starts WinDirStat on a scan of every declared volume and the Ubuntu WSL filesystem together' {
+		$shortcuts = @($apps.'scoop:extras/windirstat'.shortcuts | Where-Object { $_ })
+		$roots = @($letters | Sort-Object | ForEach-Object { "$($_):\" }) + "\\wsl.localhost\$($system.wsl.distribution)"
+
+		$shortcuts | Should -HaveCount 1
+		$shortcuts[0].name | Should -BeExactly 'WinDirStat'
+		$shortcuts[0].path | Should -BeExactly 'WinDirStat.exe'
+		$shortcuts[0].arguments | Should -BeExactly ($roots -join ' ')
 	}
 
 	It 'only uses known keys, and never empty' {

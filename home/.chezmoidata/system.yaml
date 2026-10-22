@@ -11,6 +11,10 @@ system:
       size: fill
       pagefile: memory
 
+  wsl:
+    distribution: Ubuntu
+    drive: w
+
   install:
     scoop: 'E:\Scoop'
     winget: 'E:\Apps'

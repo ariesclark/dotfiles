@@ -57,6 +57,12 @@ apps:
         path: firefox.exe
         appId: 7DB6B795FC84A795
 
+  scoop:extras/windirstat:
+    shortcuts:
+      - name: WinDirStat
+        path: WinDirStat.exe
+        arguments: 'C:\ D:\ E:\ \\wsl.localhost\Ubuntu'
+
   scoop:extras/sharex:
     mounts:
       - from: 'E:\Scoop\persist\sharex\ShareX'

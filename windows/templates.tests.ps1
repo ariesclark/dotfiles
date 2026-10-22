@@ -12,6 +12,17 @@ BeforeAll {
 		(Get-Content -LiteralPath (Join-Path $rendered $Target)) -join "`n"
 	}
 	$reg = Render '.config\windows\user.reg'
+	function Get-RegistrySection([string] $Key) {
+		$lines = $reg -split "`n"
+		$start = [array]::IndexOf($lines, "[$Key]")
+		if ($start -lt 0) {
+			return
+		}
+		$lines | Select-Object -Skip ($start + 1) | ForEach-Object -Begin { $open = $true } -Process {
+			if ($_ -eq '' -or $_.StartsWith('[')) { $open = $false }
+			if ($open) { $_ }
+		}
+	}
 	$layout = [xml](Render '.config\windows\taskbar.xml')
 }
 
@@ -76,6 +87,30 @@ Describe 'user.reg' {
 	It 'registers URL handlers under the user''s classes' {
 		$reg | Should -Match '(?m)^\[HKEY_CURRENT_USER\\Software\\Classes\\steam\\Shell\\Open\\Command\]$'
 		$reg | Should -Match '(?m)^"URL Protocol"=""$'
+	}
+
+	It 'maps the WSL distribution to its drive letter through the Plan 9 provider, so sign-in restores it' {
+		Get-RegistrySection 'HKEY_CURRENT_USER\Network\W' | Should -BeExactly @(
+			'"RemotePath"="\\\\wsl.localhost\\Ubuntu"'
+			'"UserName"=dword:00000000'
+			'"ProviderName"="Plan 9 Network Provider"'
+			'"ProviderType"=dword:00480000'
+			'"ConnectionType"=dword:00000001'
+			'"DeferFlags"=dword:00000004'
+		)
+	}
+
+	It 'ticks every volume and the WSL drive in the WinDirStat drive picker' {
+		Get-RegistrySection 'HKEY_CURRENT_USER\Software\WinDirStat\WinDirStat\DriveSelect' | Should -BeExactly @(
+			'"SelectDrivesRadio"=dword:00000001'
+			'"SelectDrivesDrives"="C:|D:|E:|W:"'
+		)
+	}
+
+	It 'sizes and sorts WinDirStat by logical size, which WSL''s drive reports where physical size is zero' {
+		Get-RegistrySection 'HKEY_CURRENT_USER\Software\WinDirStat\WinDirStat\TreeMapView' | Should -BeExactly @(
+			'"TreeMapUseLogicalSize"=dword:00000001'
+		)
 	}
 }
 

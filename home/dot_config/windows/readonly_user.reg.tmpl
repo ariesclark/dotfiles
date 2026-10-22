@@ -38,3 +38,25 @@ Windows Registry Editor Version 5.00
 {{-     end }}
 {{-   end }}
 {{- end }}
+{{- with .system.wsl }}
+
+[HKEY_CURRENT_USER\Network\{{ upper .drive }}]
+"RemotePath"="{{ printf "\\\\wsl.localhost\\%s" .distribution | replace "\\" "\\\\" }}"
+"UserName"=dword:00000000
+"ProviderName"="Plan 9 Network Provider"
+"ProviderType"=dword:00480000
+"ConnectionType"=dword:00000001
+"DeferFlags"=dword:00000004
+{{- end }}
+{{- if hasKey .apps "scoop:extras/windirstat" }}
+{{-   $drives := list }}
+{{-   range $letter := keys .system.volumes | sortAlpha }}{{ $drives = append $drives (printf "%s:" (upper $letter)) }}{{ end }}
+{{-   with .system.wsl }}{{ $drives = append $drives (printf "%s:" (upper .drive)) }}{{ end }}
+
+[HKEY_CURRENT_USER\Software\WinDirStat\WinDirStat\DriveSelect]
+"SelectDrivesRadio"=dword:00000001
+"SelectDrivesDrives"="{{ $drives | sortAlpha | join "|" }}"
+
+[HKEY_CURRENT_USER\Software\WinDirStat\WinDirStat\TreeMapView]
+"TreeMapUseLogicalSize"=dword:00000001
+{{- end }}
