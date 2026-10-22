@@ -16,10 +16,13 @@ This file contains the planned work. The [readme](../readme.md) tells what the r
 - Shrink C: to the size in `system.yaml` on a computer that has D: and E: already. When Windows refuses, read the cause in the Defrag event log (ID 259). Then remove what is safe to remove: hibernation file, restore points, change journal (`fsutil usn deletejournal`). Ask for a restart and finish on the next apply. On 2026-10-19 this was done by hand, from 500 GB to 200 GB.
 - Do the partitions, Scoop and the 1Password CLI in a [`read-source-state.pre` hook](https://www.chezmoi.io/user-guide/advanced/install-your-password-manager-on-init/). Then they are ready before chezmoi reads the templates.
 - Write an `autounattend.xml`. Then do a Windows reset to prove the full repository.
+- Rename the Windows user and its profile folder to `Aries`, with a capital A (`C:\Users\Aries`).
+- Make git show a warning when a repository is not at `<repos>/<owner>/<repo>`. Check on clone, checkout and push, because a repository on GitHub can get a new owner or name. Get the owner and the name from `gh repo view`. Do not stop the command. Do not check clones in hidden folders, submodules or worktrees.
 
 ## WSL
 
-- Install WSL. Import the distribution from the laptop to `D:\WSL\Ubuntu`.
+- Declare the Ubuntu distribution on `D:\WSL\Ubuntu`. Put the repositories from the laptop in `~/repos/<owner>/<repo>`.
+- Use `aries`, in lowercase, as the Linux user.
 - Mount `E:\WSL\cache.vhdx` at `~/.cache`.
 
 ## Repository
