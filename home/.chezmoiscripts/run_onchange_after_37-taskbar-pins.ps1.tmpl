@@ -1,0 +1,40 @@
+{{ if eq .chezmoi.os "windows" -}}
+{{- $shortcuts := list -}}
+{{- range $name, $app := .apps -}}
+{{- if hasKey $app "shortcuts" -}}
+{{- $shortcuts = append $shortcuts $app.shortcuts -}}
+{{- end -}}
+{{- end -}}
+# reruns when the layout or a shortcut changes: {{ includeTemplate "dot_config/windows/readonly_taskbar.xml.tmpl" . | sha256sum }} {{ $shortcuts | toJson | sha256sum }}
+# https://learn.microsoft.com/en-us/windows/configuration/taskbar/pinned-apps (#leaveempty)
+$ErrorActionPreference = 'Stop'
+$path = '{{ joinPath .chezmoi.homeDir ".config" "windows" "taskbar.xml" }}'
+$declared = [System.IO.File]::ReadAllText($path)
+[xml]$empty = $declared
+$namespaces = [System.Xml.XmlNamespaceManager]::new($empty.NameTable)
+$namespaces.AddNamespace('taskbar', 'http://schemas.microsoft.com/Start/2014/TaskbarLayout')
+$list = $empty.SelectSingleNode('//taskbar:TaskbarPinList', $namespaces)
+$list.RemoveAll()
+$placeholder = $empty.CreateElement('taskbar', 'DesktopApp', 'http://schemas.microsoft.com/Start/2014/TaskbarLayout')
+$placeholder.SetAttribute('DesktopApplicationLinkPath', '#leaveempty')
+[void]$list.AppendChild($placeholder)
+function Write-Layout([string] $Content) {
+	$file = Get-Item -LiteralPath $path
+	$file.IsReadOnly = $false
+	[System.IO.File]::WriteAllText($path, $Content, [System.Text.UTF8Encoding]::new($false))
+	(Get-Item -LiteralPath $path).LastWriteTime = Get-Date
+	(Get-Item -LiteralPath $path).IsReadOnly = $true
+}
+function Restart-Explorer {
+	Stop-Process -Name explorer -Force -ErrorAction SilentlyContinue
+	Start-Sleep -Seconds 2
+	if (-not (Get-Process explorer -ErrorAction SilentlyContinue)) {
+		Start-Process explorer.exe
+	}
+	Start-Sleep -Seconds 12
+}
+Write-Layout $empty.OuterXml
+Restart-Explorer
+Write-Layout $declared
+Restart-Explorer
+{{ end -}}

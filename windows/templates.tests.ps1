@@ -107,6 +107,25 @@ Describe 'taskbar.xml' {
 	}
 }
 
+Describe 'windows configuration script' {
+	BeforeAll {
+		$repository = Split-Path $PSScriptRoot
+		function Render-Script([string] $Name) {
+			(chezmoi --source $repository execute-template --file (Join-Path $repository "home\.chezmoiscripts\$Name")) -join "`n"
+		}
+	}
+
+	It 'leaves Explorer running, so settings changes cost no restart' {
+		Render-Script 'run_onchange_after_36-windows-configuration.ps1.tmpl' | Should -Not -Match '(?i)explorer'
+	}
+
+	It 'pins the taskbar in a script of its own, which reruns for the layout and the shortcuts only' {
+		$script = Render-Script 'run_onchange_after_37-taskbar-pins.ps1.tmpl'
+		$script | Should -Match '(?m)^Restart-Explorer$'
+		$script | Should -Not -Match '(?i)winget configure'
+	}
+}
+
 Describe 'git' {
 	BeforeAll {
 		$config = Render '.config\git\config'
