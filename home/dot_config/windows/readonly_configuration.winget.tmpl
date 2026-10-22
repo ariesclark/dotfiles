@@ -34,7 +34,7 @@ properties:
         Key: HKEY_CURRENT_USER\Software\Mozilla\Firefox\TaskBarIDs
         ValueName: {{ joinPath .system.install.scoop "apps" "firefox" "current" | quote }}
         ValueType: String
-        ValueData: 629BB8613F20C278
+        ValueData: {{ (index (index .apps "scoop:extras/firefox").shortcuts 0).appId }}
         Force: true
 
     - resource: PSDscResources/Registry

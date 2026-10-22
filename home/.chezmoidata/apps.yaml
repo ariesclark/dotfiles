@@ -38,6 +38,12 @@ apps:
         path: Code.exe
         appId: Microsoft.VisualStudioCode.Portable
 
+  scoop:extras/firefox:
+    shortcuts:
+      - name: Firefox
+        path: firefox.exe
+        appId: CC05E8481F991693
+
   scoop:extras/chromium:
     shortcuts:
       - name: Chromium
