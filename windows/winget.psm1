@@ -6,11 +6,15 @@ function Get-WingetInstallArgument {
 		[Parameter(Mandatory)] [string] $Id,
 		[Parameter(Mandatory)] [ValidateSet('winget', 'msstore')] [string] $Source,
 		[string] $Location,
-		[string] $InstallerType
+		[string] $InstallerType,
+		[string] $Override
 	)
 
 	$arguments = @('install', '--id', $Id, '--exact', '--source', $Source, '--silent', '--accept-package-agreements', '--accept-source-agreements', '--disable-interactivity')
-	if ($Location) {
+	if ($Override) {
+		$arguments += '--override', $Override
+	}
+	elseif ($Location) {
 		$arguments += '--location', $Location
 	}
 	if ($InstallerType) {
@@ -43,7 +47,7 @@ function Invoke-WingetChange {
 			continue
 		}
 		$option = $Options[$id]
-		$arguments = if ($option) { Get-WingetInstallArgument -Id $id -Source $Source -Location $option.Location -InstallerType $option.InstallerType } else { Get-WingetInstallArgument -Id $id -Source $Source }
+		$arguments = if ($option) { Get-WingetInstallArgument -Id $id -Source $Source -Location $option.Location -InstallerType $option.InstallerType -Override $option.Override } else { Get-WingetInstallArgument -Id $id -Source $Source }
 		winget @arguments | Out-Host
 		if ($LASTEXITCODE -ne 0) {
 			"${Source}:$id"

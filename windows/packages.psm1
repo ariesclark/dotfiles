@@ -85,8 +85,8 @@ function Get-InstallOption {
 			continue
 		}
 		$value = { param($key) $property = $app.Value.PSObject.Properties[$key]; if ($property) { $property.Value } }
-		$option = [pscustomobject]@{ Location = (& $value 'location'); InstallerType = (& $value 'installerType'); FixedLocation = [bool](& $value 'fixedLocation') }
-		if ($option.Location -or $option.InstallerType -or $option.FixedLocation) {
+		$option = [pscustomobject]@{ Location = (& $value 'location'); InstallerType = (& $value 'installerType'); FixedLocation = [bool](& $value 'fixedLocation'); Override = (& $value 'override') }
+		if ($option.Location -or $option.InstallerType -or $option.FixedLocation -or $option.Override) {
 			$options[$id] = $option
 		}
 	}
@@ -103,7 +103,8 @@ function Resolve-InstallLocation {
 	)
 
 	$fixed = $Option -and $Option.PSObject.Properties['FixedLocation'] -and $Option.FixedLocation
-	if ($Source -ne 'winget' -or ($Option -and $Option.InstallerType -eq 'msix') -or $fixed) {
+	$overridden = $Option -and $Option.PSObject.Properties['Override'] -and $Option.Override
+	if ($Source -ne 'winget' -or ($Option -and $Option.InstallerType -eq 'msix') -or $fixed -or $overridden) {
 		return
 	}
 	if ($Option -and $Option.Location) {
@@ -151,6 +152,7 @@ function Sync-Package {
 		$wingetOptions[$id] = [pscustomobject]@{
 			Location = Resolve-InstallLocation -Id $id -Source winget -Option $declared[$id] -Root $Install.winget
 			InstallerType = if ($declared[$id]) { $declared[$id].InstallerType } else { $null }
+			Override = if ($declared[$id]) { $declared[$id].Override } else { $null }
 		}
 	}
 	$failures = @(

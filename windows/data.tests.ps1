@@ -72,13 +72,13 @@ Describe 'apps.yaml' {
 
 	It 'gives apps from other sources only install options, since their files are not in a Scoop folder' {
 		$apps.PSObject.Properties | Where-Object { $_.Name -notlike 'scoop:*' } | ForEach-Object {
-			$_.Value.PSObject.Properties.Name | Where-Object { $_ -notin 'location', 'installerType', 'fixedLocation', 'mounts' } | Should -BeNullOrEmpty -Because $_.Name
+			$_.Value.PSObject.Properties.Name | Where-Object { $_ -notin 'location', 'installerType', 'fixedLocation', 'override', 'mounts' } | Should -BeNullOrEmpty -Because $_.Name
 		}
 	}
 
 	It 'only gives install options to apps winget installs' {
 		foreach ($app in $apps.PSObject.Properties) {
-			foreach ($key in 'location', 'installerType', 'fixedLocation') {
+			foreach ($key in 'location', 'installerType', 'fixedLocation', 'override') {
 				if ($app.Value.PSObject.Properties[$key]) {
 					$app.Name | Should -Match '^(winget|msstore):' -Because "$($app.Name).$key"
 				}
@@ -113,7 +113,7 @@ Describe 'apps.yaml' {
 	It 'only uses known keys, and never empty' {
 		foreach ($app in $apps.PSObject.Properties) {
 			@($app.Value.PSObject.Properties).Count | Should -BeGreaterThan 0 -Because $app.Name
-			$app.Value.PSObject.Properties.Name | Where-Object { $_ -notin 'removeAppx', 'registry', 'scripts', 'startup', 'shims', 'shortcuts', 'protocols', 'mounts', 'location', 'installerType', 'fixedLocation' } | Should -BeNullOrEmpty -Because $app.Name
+			$app.Value.PSObject.Properties.Name | Where-Object { $_ -notin 'removeAppx', 'registry', 'scripts', 'startup', 'shims', 'shortcuts', 'protocols', 'mounts', 'location', 'installerType', 'fixedLocation', 'override' } | Should -BeNullOrEmpty -Because $app.Name
 			$app.Value.PSObject.Properties | Where-Object { @($_.Value).Count -eq 0 } | Should -BeNullOrEmpty -Because $app.Name
 		}
 	}

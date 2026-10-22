@@ -86,6 +86,12 @@ Describe 'Resolve-InstallLocation' {
 		Resolve-InstallLocation -Id 'Discord.Discord' -Source winget -Option $option -Root 'E:\Apps' | Should -BeNullOrEmpty
 	}
 
+	It 'gives apps with an installer override no folder, since the override names it' {
+		$option = [pscustomobject]@{ Location = $null; InstallerType = $null; FixedLocation = $false; Override = 'install --installation-dir=E:\Apps\Docker' }
+
+		Resolve-InstallLocation -Id 'Docker.DockerDesktop' -Source winget -Option $option -Root 'E:\Apps' | Should -BeNullOrEmpty
+	}
+
 	It 'gives Store apps no folder' {
 		Resolve-InstallLocation -Id '9P8LTPGCBZXD' -Source msstore -Option $null -Root 'E:\Apps' | Should -BeNullOrEmpty
 	}
@@ -97,14 +103,19 @@ Describe 'Get-InstallOption' {
 			"winget:Cloudflare.Warp": { "location": "E:\\Apps\\Cloudflare WARP" },
 			"winget:AgileBits.1Password": { "installerType": "msix" },
 			"winget:Discord.Discord": { "fixedLocation": true },
+			"winget:Docker.DockerDesktop": { "override": "install --quiet --user" },
 			"scoop:extras/vscode": { "registry": ["install-context.reg"] }
 		}' | ConvertFrom-Json
+	}
+
+	It 'collects an installer override' {
+		(Get-InstallOption -Apps $apps -Source winget)['Docker.DockerDesktop'].Override | Should -BeExactly 'install --quiet --user'
 	}
 
 	It 'collects each app''s install options for one source, keyed by its id' {
 		$options = Get-InstallOption -Apps $apps -Source winget
 
-		@($options.Keys | Sort-Object) | Should -BeExactly @('AgileBits.1Password', 'Cloudflare.Warp', 'Discord.Discord')
+		@($options.Keys | Sort-Object) | Should -BeExactly @('AgileBits.1Password', 'Cloudflare.Warp', 'Discord.Discord', 'Docker.DockerDesktop')
 		$options['Cloudflare.Warp'].Location | Should -BeExactly 'E:\Apps\Cloudflare WARP'
 		$options['Cloudflare.Warp'].InstallerType | Should -BeNullOrEmpty
 		$options['AgileBits.1Password'].InstallerType | Should -BeExactly 'msix'
