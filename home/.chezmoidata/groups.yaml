@@ -80,14 +80,8 @@ groups:
     needs:
       - dev
 
-  vrchat:
-    needs:
-      - games-base
-    apps:
-      - steam:438100 # VRChat
-      - scoop:extras/vrcx
-
   vrchat-dev:
     needs:
-      - vrchat
       - unity
+    apps:
+      - scoop:extras/vrcx
