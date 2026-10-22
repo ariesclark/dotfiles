@@ -19,7 +19,8 @@ Describe 'generated label' {
 	BeforeDiscovery {
 		$repository = Split-Path $PSScriptRoot
 		$targets = @(chezmoi --source $repository managed --include files --path-style absolute | ForEach-Object {
-			@{ Target = $_; Leaf = Split-Path $_ -Leaf }
+			$target = [System.IO.Path]::GetFullPath($_)
+			@{ Target = $target; Leaf = Split-Path $target -Leaf }
 		})
 	}
 
@@ -28,7 +29,7 @@ Describe 'generated label' {
 	}
 
 	It 'opens <Leaf> with the source file to change instead, in its own comment syntax' -ForEach @($targets | Where-Object { $_.Target -notlike '*.json' }) {
-		$sourceFile = if ($Target -like '*\GitHub CLI\config.yml') { Join-Path $repository 'home\dot_config\gh\config.yml.tmpl' } else { chezmoi --source $repository source-path $Target }
+		$sourceFile = if ($Target -like '*\GitHub CLI\config.yml') { Join-Path $repository 'home\dot_config\gh\config.yml.tmpl' } else { [System.IO.Path]::GetFullPath((chezmoi --source $repository source-path $Target)) }
 		$label = 'This file is managed by Chezmoi. To change it, update:', $sourceFile
 		$expected = switch -Wildcard ($Target) {
 			'*.reg' { $label | ForEach-Object { "; $_" } }
@@ -48,7 +49,12 @@ Describe 'generated label' {
 	}
 
 	It 'labels the files this machine skips too' {
-		$sources = Get-ChildItem -Recurse -File -Force (Join-Path $repository 'home') | Where-Object { $_.Name -notlike 'modify_*' -and $_.Name -notlike '.chezmoi*' -and $_.Name -ne 'settings.yaml' -and $_.FullName -notmatch '\\\.chezmoi(data|templates|scripts)\\' -and $_.FullName -notlike '*\GitHub CLI\config.yml.tmpl' }
+		$sourceRoot = Join-Path $repository 'home'
+		$sources = Get-ChildItem -Recurse -File -Force $sourceRoot | Where-Object {
+			$folders = [System.IO.Path]::GetRelativePath($sourceRoot, $_.DirectoryName).Split([System.IO.Path]::DirectorySeparatorChar)
+			-not ($folders | Where-Object { $_.StartsWith('.') -and $_ -ne '.' }) -and
+			$_.Name -notlike 'modify_*' -and $_.Name -notlike '.chezmoi*' -and $_.Name -ne 'settings.yaml' -and $_.FullName -notlike '*\GitHub CLI\config.yml.tmpl'
+		}
 		$sources.Count | Should -BeGreaterThan 10
 		$sources | Where-Object { (Get-Content -Raw $_.FullName) -notmatch '\{\{-? includeTemplate "generated" \. -?\}\}' } | ForEach-Object Name | Should -BeNullOrEmpty
 	}
