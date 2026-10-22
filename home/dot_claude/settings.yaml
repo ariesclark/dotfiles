@@ -13,14 +13,21 @@ settings:
       - Bash(git add:*)
     ask:
       - Bash(git push:*)
+      - Bash(*npm add*)
+      - Bash(*npm install*)
+      - Bash(*npm i)
+      - Bash(*npm i *)
     deny:
       - Read(*.env)
       - Bash(rm:*)
       - Bash(gh pr create:*)
+  model: opus[1m]
   disableClaudeAiConnectors: true
   worktree:
     bgIsolation: none
   effortLevel: medium
+  outputStyle: Concise
+  switchModelsOnFlag: false
   tui: fullscreen
   theme: auto
   verbose: false
@@ -31,11 +38,13 @@ settings:
   agentPushNotifEnabled: true
   enabledPlugins:
     claude-md-management@claude-plugins-official: true
-    plugin-dev@claude-plugins-official: true
+    plugin-dev@claude-plugins-official: false
     pulumi@pulumi-agent-skills: true
-    rust-analyzer-lsp@claude-plugins-official: true
-    sentry-cli@claude-plugins-official: true
-    skill-creator@claude-plugins-official: true
+    rust-analyzer-lsp@claude-plugins-official: false
+    sentry-cli@claude-plugins-official: false
+    skill-creator@claude-plugins-official: false
+    paper-desktop@paper: false
+    cc-plugin-you-should-know@builtin: true
   extraKnownMarketplaces:
     ast-grep-marketplace:
       source:
@@ -54,15 +63,18 @@ settings:
       source:
         source: github
         repo: pulumi/agent-skills
+    paper:
+      source:
+        source: github
+        repo: paper-design/agent-plugins
   autoMode:
     hard_deny:
       - $defaults
-      - Never use `rm`, use `trash` instead.
+      - Never delete with `rm`, in a shell command or in executed code; use `trash` instead.
       - >-
-        Never write a scratch file to a bare path in a system temp directory, and never write one outside the
-        session scratch directory. Scratch goes in `.claude/tmp/<friendly-name>/`, which is a symlink to a
-        `mktemp -d -t "<friendly-name>.XXXXXX"` directory, so the work stays visible in the user's editor.
-        Creating that directory and writing inside it is expected; writing to `/tmp/<file>` directly is not.
+        Never write a scratch file into the project tree or at a bare path in a system temp directory. Scratch
+        goes in a named subdirectory of the session scratchpad directory given in the environment. Creating that
+        subdirectory and writing inside it is expected; writing to `/tmp/<file>` directly is not.
       - Never edit a chezmoi-managed file at its target under `~`. Edit its source in the chezmoi repo instead (`chezmoi edit <file>`).
       - >-
         Never disable or bypass git commit signing: no `--no-gpg-sign`, no `-c commit.gpgsign=false`, no
@@ -87,9 +99,9 @@ linux:
     ariesclark:
       source:
         source: directory
-        path: skills
+        path: repos/ariesclark/skills
       autoUpdate: true
     kagi-cli:
       source:
         source: directory
-        path: kagi-cli
+        path: repos/microck/kagi-cli
