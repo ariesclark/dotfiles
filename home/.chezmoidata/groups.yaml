@@ -58,7 +58,6 @@ groups:
       - base
     apps:
       - scoop:extras/vscode
-      - winget:Docker.DockerDesktop
       - scoop:versions/firefox-developer
       - scoop:versions/firefox-nightly
       - scoop:main/uv

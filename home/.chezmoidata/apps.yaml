@@ -105,9 +105,6 @@ apps:
   winget:Discord.Discord:
     fixedLocation: true
 
-  winget:Docker.DockerDesktop:
-    override: install --quiet --accept-license --user --installation-dir=E:\Apps\Docker --backend=wsl-2 --no-windows-containers --wsl-default-data-root=E:\WSL\Docker
-
   winget:RiotGames.Valorant.NA:
     location: 'E:\Games\Riot\VALORANT'
 
