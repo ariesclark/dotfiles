@@ -61,4 +61,13 @@ Describe 'archive command' {
 	It 'is a script of its own in the windows folder' {
 		Join-Path $repository 'windows\archive.ps1' | Should -Exist
 	}
+
+	It 'previews the root source too, with the data the WSL apply gives it, under .archive/root' {
+		$syntax = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $repository 'windows\archive.ps1'), [ref] $null, [ref] $null)
+		$commands = @($syntax.FindAll({ param($node) $node -is [System.Management.Automation.Language.CommandAst] }, $true) | ForEach-Object { ($_.CommandElements | ForEach-Object Extent | ForEach-Object Text) -join ' ' })
+
+		@($commands | Where-Object { $_ -like 'chezmoi --source $rootSource *--override-data $rootData archive *' }).Count | Should -Be 1
+		@($commands | Where-Object { $_ -like 'chezmoi execute-template *wsl-root-data*' }).Count | Should -Be 1
+		@($commands | Where-Object { $_ -like "Update-Archive -Archive `$rootArchive -Destination (Join-Path `$source '.archive\root')" }).Count | Should -Be 1
+	}
 }

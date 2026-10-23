@@ -1,0 +1,14 @@
+{{ if eq .chezmoi.os "windows" -}}
+{{- $wsl := printf "wsl.exe -d %s -u root --exec" .system.wsl.distribution -}}
+{{- $version := .chezmoi.version.version -}}
+$ErrorActionPreference = 'Stop'
+$PSNativeCommandUseErrorActionPreference = $true
+{{ $wsl }} sh -c 'mountpoint -q /mnt/windows/dotfiles || mount -t drvfs {{ .chezmoi.workingTree | replace "\\" "/" }} /mnt/windows/dotfiles -o ro,noatime,uid=1000,gid=1000,x-mount.mkdir'
+{{ $wsl }} sh -c 'chezmoi --version 2> /dev/null | grep -q "v{{ $version }}," || curl -fsSL https://get.chezmoi.io | sh -s -- -b /usr/local/bin -t v{{ $version }}'
+{{ $wsl }} chezmoi --source /mnt/windows/dotfiles/root --destination / --persistent-state /var/lib/chezmoi-root/state.boltdb --cache /var/cache/chezmoi-root --override-data '{{ includeTemplate "wsl-root-data" . }}' apply --force --no-tty
+wsl.exe -d {{ .system.wsl.distribution }} -u {{ .system.wsl.user }} --exec chezmoi init --no-tty --source /mnt/windows/dotfiles
+wsl.exe -d {{ .system.wsl.distribution }} -u {{ .system.wsl.user }} --exec chezmoi apply --force --no-tty
+if (({{ $wsl }} sh -c 'test -e /run/wsl-restart-needed && echo restart || true') -eq 'restart') {
+	wsl.exe --shutdown
+}
+{{ end -}}

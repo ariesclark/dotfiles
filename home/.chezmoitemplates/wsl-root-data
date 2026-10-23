@@ -1,0 +1,5 @@
+{{- $mounts := list -}}
+{{- range .system.wsl.mounts -}}
+{{-   $mounts = append $mounts (dict "from" (replace "%LOCALAPPDATA%" (env "LOCALAPPDATA") .from | replace "\\" "/") "to" .to) -}}
+{{- end -}}
+{{- dict "wsl" (dict "user" .system.wsl.user "packages" .system.wsl.packages "mounts" $mounts "checkout" (.chezmoi.workingTree | replace "\\" "/")) | toJson -}}

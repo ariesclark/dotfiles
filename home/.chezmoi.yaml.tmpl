@@ -3,18 +3,24 @@
 {{-   $machine = .machine -}}
 {{- end -}}
 {{- $groups := list -}}
-{{- if hasKey $machine "groups" -}}
-{{-   $groups = $machine.groups -}}
-{{- else -}}
-{{-   $groups = splitList "," (promptString "Groups for this machine (comma-separated)") -}}
-{{- end -}}
 {{- $partition := false -}}
-{{- if hasKey $machine "partition" -}}
-{{-   $partition = $machine.partition -}}
-{{- else -}}
-{{-   $partition = promptBool "Let apply partition this machine's disk when volumes are missing" false -}}
+{{- if eq .chezmoi.os "windows" -}}
+{{-   if hasKey $machine "groups" -}}
+{{-     $groups = $machine.groups -}}
+{{-   else -}}
+{{-     $groups = splitList "," (promptString "Groups for this machine (comma-separated)") -}}
+{{-   end -}}
+{{-   if hasKey $machine "partition" -}}
+{{-     $partition = $machine.partition -}}
+{{-   else -}}
+{{-     $partition = promptBool "Let apply partition this machine's disk when volumes are missing" false -}}
+{{-   end -}}
 {{- end -}}
 sourceDir: {{ .chezmoi.workingTree | quote }}
+{{- if and (ne .chezmoi.os "windows") (contains "microsoft" (lower .chezmoi.kernel.osrelease)) }}
+onepassword:
+  command: /mnt/windows/1password-cli/op.exe
+{{- end }}
 data:
   machine:
     partition: {{ $partition }}

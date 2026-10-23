@@ -4,7 +4,8 @@ AppData
 Documents
 {{- end }}
 {{- if eq .chezmoi.os "windows" }}
-.bashrc.d
+.local/bin
+.profile
 .profile.d
 .claude/statusline.sh
 .config/gh
@@ -14,4 +15,5 @@ AppData/Roaming/discord
 {{- end }}
 {{- if ne .chezmoi.os "windows" }}
 .config/windows
+.wslconfig
 {{- end }}

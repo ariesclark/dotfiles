@@ -1,0 +1,4 @@
+#!/bin/sh
+set -eu
+apt-get install -y --no-install-recommends {{ .wsl.packages | join " " }}
+systemctl disable --now docker.service docker.socket

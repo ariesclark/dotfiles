@@ -2,7 +2,7 @@
 [user]
 	name = Aries Clark
 	email = me@ariesclark.com
-{{- if lookPath "op" }}
+{{- if lookPath .chezmoi.config.onepassword.command }}
 	signingkey = {{ onepasswordRead "op://personal/rczscaa2ex5o5gqxuoo5aa6xmu/public key" }}
 {{- end }}
 [gpg]

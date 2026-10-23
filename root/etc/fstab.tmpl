@@ -1,0 +1,5 @@
+{{ includeTemplate "generated" . -}}
+{{ range .wsl.mounts -}}
+{{ .from | replace " " "\\040" }} {{ .to }} drvfs ro,noatime,uid=1000,gid=1000,x-mount.mkdir 0 0
+{{ end -}}
+{{ .wsl.checkout | replace " " "\\040" }} /mnt/windows/dotfiles drvfs ro,noatime,uid=1000,gid=1000,x-mount.mkdir 0 0

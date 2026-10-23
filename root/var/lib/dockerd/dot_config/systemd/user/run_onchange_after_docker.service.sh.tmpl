@@ -1,0 +1,5 @@
+#!/bin/sh
+# {{ includeTemplate "adjacent-hash" . }}
+set -eu
+systemctl --user -M dockerd@ daemon-reload
+systemctl --user -M dockerd@ restart docker

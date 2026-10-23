@@ -1,0 +1,5 @@
+#!/bin/sh
+# {{ includeTemplate "adjacent-hash" . }}
+set -eu
+findmnt -rn -t 9p,drvfs -o TARGET | grep ^/mnt/windows/ | grep -vx /mnt/windows/dotfiles | xargs -r umount -l
+mount -a

@@ -13,7 +13,30 @@ system:
 
   wsl:
     distribution: Ubuntu
+    user: aries
     drive: w
+    mounts:
+      - from: 'C:\Windows\System32\OpenSSH'
+        to: /mnt/windows/openssh
+      - from: '%LOCALAPPDATA%\Microsoft\WindowsApps\Agilebits.1Password_amwd9z03whsfe'
+        to: /mnt/windows/1password
+      - from: 'E:\Scoop\apps\1password-cli\current'
+        to: /mnt/windows/1password-cli
+      - from: 'E:\Scoop\apps\vscode\current'
+        to: /mnt/windows/vscode
+      - from: 'E:\Scoop\apps\firefox\current'
+        to: /mnt/windows/firefox
+    packages:
+      - git
+      - jq
+      - docker.io
+      - docker-compose-v2
+      - docker-buildx
+      - uidmap
+      - dbus-user-session
+      - rootlesskit
+      - slirp4netns
+      - acl
 
   install:
     scoop: 'E:\Scoop'

@@ -1,0 +1,10 @@
+{{- $name := base .chezmoi.sourceFile | trimPrefix "run_onchange_after_" | trimPrefix "run_onchange_before_" | trimSuffix ".tmpl" -}}
+{{- $name = trimSuffix (ext $name) $name -}}
+{{- $directory := dir .chezmoi.sourceFile -}}
+{{- $watched := "" -}}
+{{- range list (printf "readonly_%s.tmpl" $name) (printf "%s.tmpl" $name) (printf "readonly_%s" $name) $name -}}
+{{-   if and (not $watched) (stat (joinPath $.chezmoi.sourceDir $directory .)) -}}
+{{-     $watched = joinPath $directory . -}}
+{{-   end -}}
+{{- end -}}
+{{ includeTemplate $watched . | sha256sum }}

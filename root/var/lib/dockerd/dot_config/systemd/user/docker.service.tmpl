@@ -1,0 +1,22 @@
+{{ includeTemplate "generated" . -}}
+[Unit]
+Description=Rootless Docker for the dockerd user
+Documentation=https://docs.docker.com/go/rootless/
+
+[Service]
+Environment=PATH=/usr/share/docker.io/contrib:/usr/sbin:/usr/bin:/sbin:/bin
+ExecStart=/usr/share/docker.io/contrib/dockerd-rootless.sh --host=unix:///run/dockerd/docker.sock --group=0
+ExecReload=/bin/kill -s HUP $MAINPID
+Type=notify
+NotifyAccess=all
+Delegate=yes
+KillMode=mixed
+Restart=always
+RestartSec=2
+TimeoutSec=0
+LimitNOFILE=infinity
+LimitNPROC=infinity
+TasksMax=infinity
+
+[Install]
+WantedBy=default.target

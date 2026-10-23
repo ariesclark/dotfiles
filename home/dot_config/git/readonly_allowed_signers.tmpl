@@ -1,4 +1,4 @@
-{{- if lookPath "op" -}}
+{{- if lookPath .chezmoi.config.onepassword.command -}}
 {{ includeTemplate "generated" . }}
 me@ariesclark.com namespaces="git" {{ onepasswordRead "op://personal/rczscaa2ex5o5gqxuoo5aa6xmu/public key" }}
 {{ end -}}
