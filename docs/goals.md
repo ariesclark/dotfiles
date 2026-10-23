@@ -12,7 +12,6 @@ This file contains the planned work. The [readme](../readme.md) tells what the r
 - Make a mount for the Steam `config` folder. Scoop does not keep this folder when Steam changes version, and Steam then forgets the account.
 - Declare the remaining Windows settings in [`configuration.winget`](../home/dot_config/windows/readonly_configuration.winget.tmpl).
 - Apply configuration files outside `~`. Use a second chezmoi source (for example `drives/e/`) with `--destination E:\` and its own state. Start with the Scoop `persist` folders of Firefox and VS Code.
-- Make the Claude Code status line and scratch helper work on Windows. Now they are bash scripts for WSL only.
 - Shrink C: to the size in `system.yaml` on a computer that has D: and E: already. When Windows refuses, read the cause in the Defrag event log (ID 259). Then remove what is safe to remove: hibernation file, restore points, change journal (`fsutil usn deletejournal`). Ask for a restart and finish on the next apply. On 2026-10-19 this was done by hand, from 500 GB to 200 GB.
 - Do the partitions, Scoop and the 1Password CLI in a [`read-source-state.pre` hook](https://www.chezmoi.io/user-guide/advanced/install-your-password-manager-on-init/). Then they are ready before chezmoi reads the templates.
 - Write an `autounattend.xml`. Then do a Windows reset to prove the full repository.
