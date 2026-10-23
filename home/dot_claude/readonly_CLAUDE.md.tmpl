@@ -53,7 +53,7 @@ Reach for it when the work is bulk or mechanical: scanning many files for a stat
 **Safety.** Quote expansions (`"$var"`, `"${arr[@]}"`); leave them bare only where you want word-splitting or globbing. Use `"$(...)"`, not backticks.
 
 ## Docker
-In WSL, Docker comes from Docker Desktop on Windows. If `docker info` fails, ask me to start Docker Desktop; never start a daemon inside WSL or work around it.
+In WSL, Docker runs rootless as the `dockerd` user, and `DOCKER_HOST` points at its socket. If `docker info` fails, tell me; never start another daemon, use `sudo docker`, or work around it.
 
 # Workflow
 
