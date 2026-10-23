@@ -32,7 +32,7 @@ This repository contains the configuration of a Windows computer. [chezmoi](http
     - [`system.yaml`](home/.chezmoidata/system.yaml): the volumes by drive letter, with label, size and pagefile. The install folders for Scoop and winget.
     - [`groups.yaml`](home/.chezmoidata/groups.yaml): the groups of packages, as `source:id` (Scoop, winget, Microsoft Store, Steam). A group can need other groups.
     - [`apps.yaml`](home/.chezmoidata/apps.yaml): the settings of each package. These are registrations (right-click menus, startup entries, URL handlers), mounts (junctions to other drives) and install options.
-  - [`.chezmoiscripts/`](home/.chezmoiscripts): the [scripts](https://www.chezmoi.io/user-guide/use-scripts-to-perform-actions/) that chezmoi runs. They do the partitions, packages, registrations and WinGet configuration.
+  - [`.chezmoiscripts/`](home/.chezmoiscripts): the [scripts](https://www.chezmoi.io/user-guide/use-scripts-to-perform-actions/) that are not for one file. They do the partitions, packages, registrations and WinGet configuration. A script for one file is next to that file.
   - [`dot_config/windows/`](home/dot_config/windows): the Windows settings.
     - [`readonly_configuration.winget.tmpl`](home/dot_config/windows/readonly_configuration.winget.tmpl): a [WinGet configuration](https://learn.microsoft.com/en-us/windows/package-manager/configuration/) file. It sets the taskbar, the environment variables, the startup entries to keep off and the [taskbar pin policy](https://learn.microsoft.com/en-us/windows/configuration/taskbar/pinned-apps).
     - [`readonly_taskbar.xml.tmpl`](home/dot_config/windows/readonly_taskbar.xml.tmpl): the taskbar pins, in order.

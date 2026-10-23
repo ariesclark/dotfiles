@@ -1,5 +1,5 @@
 {{ if eq .chezmoi.os "windows" -}}
-# reruns when the file changes: {{ includeTemplate "dot_config/windows/readonly_configuration.winget.tmpl" . | sha256sum }}
+# {{ includeTemplate "adjacent-hash" . }}
 $ErrorActionPreference = 'Stop'
 $modules = '{{ .system.install.configurationModules }}'
 New-Item -ItemType Directory -Force -Path $modules | Out-Null

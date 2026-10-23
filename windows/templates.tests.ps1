@@ -64,7 +64,7 @@ Describe 'generated label' {
 		$sources = Get-ChildItem -Recurse -File -Force $sourceRoot | Where-Object {
 			$folders = [System.IO.Path]::GetRelativePath($sourceRoot, $_.DirectoryName).Split([System.IO.Path]::DirectorySeparatorChar)
 			-not ($folders | Where-Object { $_.StartsWith('.') -and $_ -ne '.' }) -and
-			$_.Name -notlike 'modify_*' -and $_.Name -notlike '.chezmoi*' -and $_.Name -ne 'settings.yaml' -and $_.FullName -notlike '*\GitHub CLI\config.yml.tmpl'
+			$_.Name -notlike 'modify_*' -and $_.Name -notlike 'run_*' -and $_.Name -notlike '.chezmoi*' -and $_.Name -ne 'settings.yaml' -and $_.FullName -notlike '*\GitHub CLI\config.yml.tmpl'
 		}
 		$sources.Count | Should -BeGreaterThan 10
 		$sources | Where-Object { (Get-Content -Raw $_.FullName) -notmatch '\{\{-? includeTemplate "generated" \. -?\}\}' } | ForEach-Object Name | Should -BeNullOrEmpty
@@ -152,16 +152,16 @@ Describe 'windows configuration script' {
 	BeforeAll {
 		$repository = Split-Path $PSScriptRoot
 		function Render-Script([string] $Name) {
-			(chezmoi --source $repository execute-template --file (Join-Path $repository "home\.chezmoiscripts\$Name")) -join "`n"
+			(chezmoi --source $repository execute-template --file (Join-Path $repository "home\$Name")) -join "`n"
 		}
 	}
 
 	It 'leaves Explorer running, so settings changes cost no restart' {
-		Render-Script 'run_onchange_after_36-windows-configuration.ps1.tmpl' | Should -Not -Match '(?i)explorer'
+		Render-Script 'dot_config\windows\run_onchange_after_configuration.winget.ps1.tmpl' | Should -Not -Match '(?i)explorer'
 	}
 
 	It 'pins the taskbar in a script of its own, which reruns for the layout and the shortcuts only' {
-		$script = Render-Script 'run_onchange_after_37-taskbar-pins.ps1.tmpl'
+		$script = Render-Script 'dot_config\windows\run_onchange_after_taskbar.xml.ps1.tmpl'
 		$script | Should -Match '(?m)^Restart-Explorer$'
 		$script | Should -Not -Match '(?i)winget configure'
 	}
