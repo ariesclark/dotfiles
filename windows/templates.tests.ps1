@@ -185,18 +185,18 @@ Describe 'WSL root source' {
 		}
 	}
 
-	It 'turns off drive automount and the Windows PATH, and mounts only what fstab lists' {
+	It 'mounts the Windows drives and what fstab lists, and appends the Windows PATH' {
 		Get-RootSetting 'etc\wsl.conf' | Should -BeExactly @(
 			'[boot]'
 			'systemd=true'
 			'[user]'
 			'default=aries'
 			'[automount]'
-			'enabled=false'
+			'enabled=true'
 			'mountFsTab=true'
 			'[interop]'
 			'enabled=true'
-			'appendWindowsPath=false'
+			'appendWindowsPath=true'
 		)
 	}
 
@@ -228,7 +228,7 @@ Describe 'WSL root source' {
 	It 'installs the declared packages and keeps the root Docker daemon off' {
 		Render-RootScript 'run_onchange_before_10-packages.sh.tmpl' | Should -BeExactly @(
 			'set -eu'
-			'apt-get install -y --no-install-recommends git jq docker.io docker-compose-v2 docker-buildx uidmap dbus-user-session rootlesskit slirp4netns acl'
+			'apt-get install -y --no-install-recommends git jq wl-clipboard xdg-utils docker.io docker-compose-v2 docker-buildx uidmap dbus-user-session rootlesskit slirp4netns acl'
 			'systemctl disable --now docker.service docker.socket'
 		)
 	}

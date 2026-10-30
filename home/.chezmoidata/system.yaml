@@ -29,6 +29,8 @@ system:
     packages:
       - git
       - jq
+      - wl-clipboard
+      - xdg-utils
       - docker.io
       - docker-compose-v2
       - docker-buildx

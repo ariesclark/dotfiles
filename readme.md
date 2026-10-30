@@ -60,7 +60,7 @@ The apply of `root/` does these steps, in this order:
 2. The files go into `/`: `wsl.conf`, `fstab`, the apt source for `gh`, and the service and socket of `dockerd`.
 3. The scripts after the files, each one only when its file changed: install `gh`, mount the Windows folders again, ask Windows to stop WSL, start the Docker service of `dockerd` again.
 
-In the distribution, the user `aries` has no drives from Windows. It has only the read-only folders in `/mnt/windows`, and no Windows folders in `PATH`. Links in `~/.local/bin` give it `op`, `ssh.exe`, `op-ssh-sign-wsl.exe` and `code` from these folders. The user `dockerd` runs Docker without root. `aries` uses it through the socket `/run/dockerd/docker.sock`. Containers can use `~/repos`, but not the other files in `~`.
+In the distribution, WSL mounts the Windows drives at `/mnt/<letter>` and appends the Windows `PATH`, so `xdg-open` opens links in the Windows default browser. The read-only folders in `/mnt/windows` hold the Windows tools. Links in `~/.local/bin` give it `op`, `ssh.exe`, `op-ssh-sign-wsl.exe` and `code` from these folders. The user `dockerd` runs Docker without root. `aries` uses it through the socket `/run/dockerd/docker.sock`. Containers can use `~/repos`, but not the other files in `~`.
 
 ## Rules
 
