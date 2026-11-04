@@ -9,8 +9,6 @@ settings:
   includeGitInstructions: false
   permissions:
     defaultMode: auto
-    allow:
-      - Bash(git add:*)
     ask:
       - Bash(git push:*)
       - Bash(*npm add*)
@@ -18,8 +16,6 @@ settings:
       - Bash(*npm i)
       - Bash(*npm i *)
     deny:
-      - Read(*.env)
-      - Bash(rm:*)
       - Bash(gh pr create:*)
   model: opus[1m]
   disableClaudeAiConnectors: true
@@ -68,17 +64,16 @@ settings:
         source: github
         repo: paper-design/agent-plugins
   autoMode:
+    soft_deny:
+      - $defaults
+      - >-
+        Don't disable or bypass git commit signing:
+        * no `--no-gpg-sign`,
+        * no `-c commit.gpgsign=false`
+        * yes, for scratch or temporary files.
     hard_deny:
       - $defaults
-      - Never delete with `rm`, in a shell command or in executed code; use `trash` instead.
-      - >-
-        Never write a scratch file into the project tree or at a bare path in a system temp directory. Scratch
-        goes in a named subdirectory of the session scratchpad directory given in the environment. Creating that
-        subdirectory and writing inside it is expected; writing to `/tmp/<file>` directly is not.
       - Never edit a chezmoi-managed file at its target under `~`. Edit its source in the chezmoi repo instead (`chezmoi edit <file>`).
-      - >-
-        Never disable or bypass git commit signing: no `--no-gpg-sign`, no `-c commit.gpgsign=false`, no
-        `git config` write that turns signing off.
       - >-
         Never create a pull request. This covers `gh pr create` and any equivalent API call, such as `gh api` or
         `curl` POSTing to a `/pulls` endpoint.
