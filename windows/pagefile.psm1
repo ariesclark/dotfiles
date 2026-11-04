@@ -17,9 +17,9 @@ function Get-PagefileDeclaration {
 		return
 	}
 	$size = $declared[0].Value.pagefile
-	$sizeGB = if ($size -ieq 'memory') { [int][math]::Ceiling($MemoryBytes / 1GB) } else { ConvertFrom-Size $size }
+	$sizeGB = if ($size -ieq 'auto') { 'auto' } elseif ($size -ieq 'memory') { [int][math]::Ceiling($MemoryBytes / 1GB) } else { ConvertFrom-Size $size }
 	if ($null -eq $sizeGB) {
-		throw "Can't read the pagefile size '$size'; use memory, or a number of GB like 16GB."
+		throw "Can't read the pagefile size '$size'; use auto, memory, or a number of GB like 16GB."
 	}
 	[pscustomobject]@{ letter = $declared[0].Name.ToUpperInvariant(); sizeGB = $sizeGB }
 }
@@ -33,7 +33,7 @@ function Get-PagefileChange {
 	)
 
 	$name = "$($Desired.letter):\pagefile.sys"
-	$sizeMB = [int]$Desired.sizeGB * 1024
+	$sizeMB = if ($Desired.sizeGB -eq 'auto') { 0 } else { [int]$Desired.sizeGB * 1024 }
 	if ($Automatic) {
 		[pscustomobject]@{ Action = 'DisableAutomatic'; Name = $null; SizeMB = $null }
 	}
@@ -67,7 +67,8 @@ function Sync-Pagefile {
 			}
 		}
 	}
-	Write-Host "Pagefile: $($Pagefile.letter): fixed at $($Pagefile.sizeGB) GB, nowhere else (admin prompt; takes effect after a restart)."
+	$size = if ($Pagefile.sizeGB -eq 'auto') { 'sized by Windows' } else { "fixed at $($Pagefile.sizeGB) GB" }
+	Write-Host "Pagefile: $($Pagefile.letter): $size, nowhere else (admin prompt; takes effect after a restart)."
 	$process = Start-Process -FilePath powershell.exe -Verb RunAs -Wait -PassThru -ArgumentList '-NoProfile', '-Command', "`$ErrorActionPreference = 'Stop'; $($commands -join '; ')"
 	if ($process.ExitCode -ne 0) {
 		throw 'Could not set the pagefile.'

@@ -28,6 +28,15 @@ Describe 'Get-PagefileDeclaration' {
 		$pagefile.sizeGB | Should -Be 16
 	}
 
+	It 'leaves the size of an auto pagefile to Windows' {
+		$volumes = '{ "e": { "label": "Apps", "size": "fill", "pagefile": "auto" } }' | ConvertFrom-Json
+
+		$pagefile = Get-PagefileDeclaration -Volumes $volumes -MemoryBytes (32GB)
+
+		$pagefile.letter | Should -BeExactly 'E'
+		$pagefile.sizeGB | Should -BeExactly 'auto'
+	}
+
 	It 'declares nothing when no volume has a pagefile' {
 		$volumes = '{ "c": { "label": "System", "size": "100GB" } }' | ConvertFrom-Json
 
@@ -85,5 +94,22 @@ Describe 'Get-PagefileChange' {
 
 	It 'changes nothing when it already matches, ignoring the case of the path' {
 		Get-PagefileChange -Desired $desired -Automatic $false -Settings @(New-Setting 'e:\PAGEFILE.SYS' 32768) | Should -BeNullOrEmpty
+	}
+
+	It 'gives an auto pagefile a system-managed size, 0 MB for both sizes, on the declared volume only' {
+		$auto = [pscustomobject]@{ letter = 'E'; sizeGB = 'auto' }
+
+		$changes = @(Get-PagefileChange -Desired $auto -Automatic $true -Settings @((New-Setting 'C:\pagefile.sys' 4096), (New-Setting 'E:\pagefile.sys' 32768)))
+
+		$changes.Action | Should -BeExactly @('DisableAutomatic', 'Remove', 'Set')
+		$changes[1].Name | Should -BeExactly 'C:\pagefile.sys'
+		$changes[2].Name | Should -BeExactly 'E:\pagefile.sys'
+		$changes[2].SizeMB | Should -BeExactly 0
+	}
+
+	It 'changes nothing when an auto pagefile is already system-managed' {
+		$auto = [pscustomobject]@{ letter = 'E'; sizeGB = 'auto' }
+
+		Get-PagefileChange -Desired $auto -Automatic $false -Settings @(New-Setting 'E:\pagefile.sys' 0) | Should -BeNullOrEmpty
 	}
 }

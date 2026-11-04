@@ -9,7 +9,7 @@ system:
     e:
       label: Apps
       size: fill
-      pagefile: memory
+      pagefile: auto
 
   wsl:
     distribution: Ubuntu

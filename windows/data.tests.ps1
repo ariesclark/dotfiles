@@ -20,6 +20,13 @@ Describe 'system.yaml' {
 		{ Get-PagefileDeclaration -Volumes $system.volumes -MemoryBytes (32GB) } | Should -Not -Throw
 	}
 
+	It 'lets Windows size the pagefile on E:, so it grows when WSL and a game together near the commit limit' {
+		$pagefile = Get-PagefileDeclaration -Volumes $system.volumes -MemoryBytes (32GB)
+
+		$pagefile.letter | Should -BeExactly 'E'
+		$pagefile.sizeGB | Should -BeExactly 'auto'
+	}
+
 	It 'installs winget apps to a declared volume, not C:' {
 		$system.install.winget.Substring(0, 1) | Should -BeIn $letters
 		$system.install.winget | Should -Not -BeLike 'C:*'
