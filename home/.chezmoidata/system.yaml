@@ -26,11 +26,29 @@ system:
         to: /mnt/windows/vscode
       - from: 'E:\Scoop\apps\firefox\current'
         to: /mnt/windows/firefox
+      - from: 'E:\Scoop\persist\vscode\data\extensions'
+        to: /mnt/windows/vscode-extensions
+      - from: 'E:\Scoop\apps\adb\current\platform-tools'
+        to: /mnt/windows/adb
     packages:
       - git
       - jq
+      - unzip
+      - rustup
+      - build-essential
+      - pkg-config
+      - libssl-dev
+      - dotnet-sdk-10.0
+      - default-jre-headless
+      - python3-venv
       - wl-clipboard
       - xdg-utils
+      # Erlang builds through asdf-erlang, without wx, ODBC, Java or docs:
+      # https://github.com/asdf-vm/asdf-erlang/blob/master/README.md
+      - autoconf
+      - m4
+      - libncurses-dev
+      - cmake
       - docker.io
       - docker-compose-v2
       - docker-buildx

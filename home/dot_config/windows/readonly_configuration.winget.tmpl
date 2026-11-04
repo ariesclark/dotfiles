@@ -199,6 +199,17 @@ properties:
         ValueData: E:\Temp
         Force: true
 
+    - resource: PSDscResources/Registry
+      id: vscodePortable
+      directives:
+        description: VS Code's data folder itself, not the Scoop junction, so WSL can translate its extension paths (https://github.com/microsoft/vscode-remote-release/issues/5761)
+      settings:
+        Key: HKEY_CURRENT_USER\Environment
+        ValueName: VSCODE_PORTABLE
+        ValueType: String
+        ValueData: {{ joinPath .system.install.scoop "persist" "vscode" "data" }}
+        Force: true
+
     - resource: PSDscResources/Environment
       id: doNotTrack
       directives:

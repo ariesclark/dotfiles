@@ -1,0 +1,5 @@
+{{ if ne .chezmoi.os "windows" -}}
+#!/bin/sh
+set -eu
+rustup default > /dev/null 2>&1 || rustup default stable
+{{ end -}}

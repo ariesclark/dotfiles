@@ -1,0 +1,7 @@
+{{ if ne .chezmoi.os "windows" -}}
+#!/bin/sh
+set -eu
+PATH="$HOME/.local/share/vite-plus/bin:$PATH:$HOME/.local/share/pnpm/bin"
+[ -x "$HOME/.local/share/pnpm/bin/playwright-cli" ] || pnpm add -g @playwright/cli
+[ -r "$HOME/.claude/skills/playwright-cli/SKILL.md" ] || PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright "$HOME/.local/share/pnpm/bin/playwright-cli" install --skills --global
+{{ end -}}

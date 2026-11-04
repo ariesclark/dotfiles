@@ -1,0 +1,5 @@
+{{ if ne .chezmoi.os "windows" -}}
+#!/bin/sh
+set -eu
+[ -x "$HOME/.local/bin/uv" ] || curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR="$HOME/.local/bin" UV_NO_MODIFY_PATH=1 sh
+{{ end -}}

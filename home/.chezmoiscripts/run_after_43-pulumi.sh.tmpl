@@ -1,0 +1,5 @@
+{{ if ne .chezmoi.os "windows" -}}
+#!/bin/sh
+set -eu
+[ -x "$HOME/.local/bin/pulumi" ] || curl -fsSL https://get.pulumi.com | sh -s -- --silent --install-root "$HOME/.local" --no-edit-path
+{{ end -}}

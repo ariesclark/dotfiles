@@ -205,6 +205,8 @@ Describe 'WSL root source' {
 			"E:/Scoop/apps/1password-cli/current /mnt/windows/1password-cli $options"
 			"E:/Scoop/apps/vscode/current /mnt/windows/vscode $options"
 			"E:/Scoop/apps/firefox/current /mnt/windows/firefox $options"
+			"E:/Scoop/persist/vscode/data/extensions /mnt/windows/vscode-extensions $options"
+			"E:/Scoop/apps/adb/current/platform-tools /mnt/windows/adb $options"
 			"$($repository.Replace('\', '/')) /mnt/windows/dotfiles $options"
 		)
 	}
@@ -225,7 +227,7 @@ Describe 'WSL root source' {
 	It 'installs the declared packages and keeps the root Docker daemon off' {
 		Render-RootScript 'run_onchange_before_10-packages.sh.tmpl' | Should -BeExactly @(
 			'set -eu'
-			'apt-get install -y --no-install-recommends git jq wl-clipboard xdg-utils docker.io docker-compose-v2 docker-buildx uidmap dbus-user-session rootlesskit slirp4netns acl'
+			'apt-get install -y --no-install-recommends git jq unzip rustup build-essential pkg-config libssl-dev dotnet-sdk-10.0 default-jre-headless python3-venv wl-clipboard xdg-utils autoconf m4 libncurses-dev cmake docker.io docker-compose-v2 docker-buildx uidmap dbus-user-session rootlesskit slirp4netns acl'
 			'systemctl disable --now docker.service docker.socket'
 		)
 	}
@@ -345,19 +347,34 @@ Describe 'WSL home' {
 		@{ Link = 'op-ssh-sign-wsl.exe'; Target = '/mnt/windows/1password/op-ssh-sign-wsl.exe' }
 		@{ Link = 'ssh.exe'; Target = '/mnt/windows/openssh/ssh.exe' }
 		@{ Link = 'code'; Target = '/mnt/windows/vscode/bin/code' }
+		@{ Link = 'adb'; Target = '/mnt/windows/adb/adb.exe' }
 	) {
 		@($listing | Where-Object { $_ -like "* .local/bin/$Link -> $Target" }).Count | Should -Be 1
 		wsl.exe -d Ubuntu -u aries --exec test -e $Target
 		$LASTEXITCODE | Should -Be 0
 	}
 
-	It 'puts ~/.local/bin first in PATH and exports what ~/.profile.d sets, at login' {
-		$environment = @(wsl.exe -d Ubuntu -u aries --exec env -i "HOME=$homeRendered" PATH=/usr/bin:/bin sh -c '. "$HOME/.profile"; echo "$PATH"; echo "$DOCKER_HOST"; echo "$DO_NOT_TRACK"')
+	It 'puts the home tools on PATH and exports what ~/.profile.d sets, once, in <Shell>' -ForEach @(
+		@{ Shell = 'a POSIX login shell'; ReadsEtcProfile = $false; Command = @('sh', '-c', '. "$HOME/.profile"; echo "$PATH"; echo "$DOCKER_HOST"; echo "$DO_NOT_TRACK"') }
+		@{ Shell = 'a bash login shell'; ReadsEtcProfile = $true; Command = @('bash', '-l', '-c', 'echo "$PATH"; echo "$DOCKER_HOST"; echo "$DO_NOT_TRACK"') }
+		@{ Shell = 'an interactive bash that is not a login shell'; ReadsEtcProfile = $false; Command = @('bash', '-i', '-c', 'echo "$PATH"; echo "$DOCKER_HOST"; echo "$DO_NOT_TRACK"') }
+		@{ Shell = 'an interactive bash inside a bash login shell'; ReadsEtcProfile = $true; Command = @('bash', '-l', '-c', 'bash -i -c ''echo "$PATH"; echo "$DOCKER_HOST"; echo "$DO_NOT_TRACK"''') }
+	) {
+		$systemPath = if ($ReadsEtcProfile) {
+			wsl.exe -d Ubuntu -u aries --exec env -i "HOME=$homeRendered" PATH=/usr/bin:/bin sh -c '. /etc/profile; echo "$PATH"'
+		} else {
+			'/usr/bin:/bin'
+		}
+		$environment = @(wsl.exe -d Ubuntu -u aries --exec env -i "HOME=$homeRendered" PATH=/usr/bin:/bin @Command 2> $null)
 		$environment | Should -BeExactly @(
-			"$homeRendered/.local/bin:/usr/bin:/bin"
+			"$homeRendered/.local/bin:$homeRendered/.cargo/bin:$homeRendered/.asdf/shims:${systemPath}:$homeRendered/.local/share/pnpm/bin"
 			'unix:///run/dockerd/docker.sock'
 			'1'
 		)
+	}
+
+	It 'keeps Ubuntu''s own interactive bash setup' {
+		wsl.exe -d Ubuntu -u aries --exec env -i "HOME=$homeRendered" PATH=/usr/bin:/bin bash -i -c 'echo "$HISTCONTROL"' 2> $null | Should -BeExactly 'ignoreboth'
 	}
 
 	It 'installs Vite+ for Node and pnpm once, without letting it edit the shell profiles' {
@@ -366,6 +383,23 @@ Describe 'WSL home' {
 			'set -eu'
 			'[ -x "$HOME/.local/share/vite-plus/current/bin/vp" ] || curl -fsSL https://vite.plus | VP_NODE_MANAGER=yes VP_PM_MANAGER=yes VP_SELF_SETUP_NO_MODIFY_PATH=1 bash'
 		)
+	}
+
+	It 'installs uv once into ~/.local/bin, without letting it edit the shell profiles' {
+		@((wsl.exe -d Ubuntu -u aries --exec chezmoi --config "$work/chezmoi.yaml" execute-template --file /mnt/windows/dotfiles/home/.chezmoiscripts/run_after_42-uv.sh.tmpl) | Where-Object { $_ }) | Should -BeExactly @(
+			'#!/bin/sh'
+			'set -eu'
+			'[ -x "$HOME/.local/bin/uv" ] || curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR="$HOME/.local/bin" UV_NO_MODIFY_PATH=1 sh'
+		)
+	}
+
+	It 'unpacks the pinned jadx release and links its launcher into ~/.local/bin' {
+		@($listing | Where-Object { $_ -like '-rwx* .local/share/jadx/bin/jadx' }).Count | Should -Be 1
+		@($listing | Where-Object { $_ -like '* .local/bin/jadx -> /home/aries/.local/share/jadx/bin/jadx' }).Count | Should -Be 1
+		$external = (wsl.exe -d Ubuntu -u aries --exec sh -c "chezmoi --config $work/chezmoi.yaml execute-template --file /mnt/windows/dotfiles/home/.chezmoiexternal.toml.tmpl | python3 -I -c 'import json, sys, tomllib; print(json.dumps(tomllib.load(sys.stdin.buffer)))'") | ConvertFrom-Json
+		$jadx = $external.'.local/share/jadx'
+		$jadx.url | Should -BeExactly 'https://github.com/skylot/jadx/releases/download/v1.5.6/jadx-1.5.6.zip'
+		$jadx.checksum.sha256 | Should -BeExactly '545ea2be9c242511bc145755cf4bda2485ade42966e096f8b4d3da2a230e8974'
 	}
 
 	It 'loads the Vite+ environment at login' {
@@ -397,7 +431,9 @@ Describe 'WSL home on Windows' {
 	It 'leaves the Linux links and profile out' {
 		$managed = @(chezmoi --source (Split-Path $PSScriptRoot) managed --path-style relative)
 		$managed | Should -Not -Contain '.profile'
+		$managed | Should -Not -Contain '.bashrc'
 		$managed | Should -Not -Contain '.local/bin/op'
+		$managed | Should -Not -Contain '.local/share/jadx'
 		$managed | Should -Contain '.config/git/config'
 	}
 
@@ -407,6 +443,25 @@ Describe 'WSL home on Windows' {
 
 	It 'keeps 1Password''s default command on Windows' {
 		chezmoi --source (Split-Path $PSScriptRoot) execute-template --init --file (Join-Path (Split-Path $PSScriptRoot) 'home\.chezmoi.yaml.tmpl') | Should -Not -Match 'onepassword'
+	}
+}
+
+Describe 'VS Code in WSL' {
+	It 'points VS Code at its data folder itself, not through the Scoop junction' {
+		$configuration = Join-Path $rendered '.config\windows\configuration.winget'
+		$resources = (chezmoi execute-template "{{ include `"$($configuration.Replace('\', '/'))`" | fromYaml | toJson }}" | ConvertFrom-Json).properties.resources
+		$portable = @($resources | Where-Object id -eq 'vscodePortable')
+		$portable.Count | Should -Be 1
+		$portable[0].resource | Should -BeExactly 'PSDscResources/Registry'
+		$portable[0].settings.Key | Should -BeExactly 'HKEY_CURRENT_USER\Environment'
+		$portable[0].settings.ValueName | Should -BeExactly 'VSCODE_PORTABLE'
+		$portable[0].settings.ValueType | Should -BeExactly 'String'
+		$portable[0].settings.ValueData | Should -BeExactly 'E:\Scoop\persist\vscode\data'
+		(Get-Item -LiteralPath $portable[0].settings.ValueData).LinkType | Should -BeNullOrEmpty
+	}
+
+	It 'translates the extensions'' Windows path inside WSL, where the WSL scripts run from' {
+		wsl.exe -d Ubuntu -u aries --exec wslpath -u 'e:\Scoop\persist\vscode\data\extensions\ms-vscode-remote.remote-wsl' | Should -BeExactly '/mnt/windows/vscode-extensions/ms-vscode-remote.remote-wsl'
 	}
 }
 

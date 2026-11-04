@@ -4,6 +4,7 @@ AppData
 Documents
 {{- end }}
 {{- if eq .chezmoi.os "windows" }}
+.bashrc
 .local/bin
 .profile
 .profile.d

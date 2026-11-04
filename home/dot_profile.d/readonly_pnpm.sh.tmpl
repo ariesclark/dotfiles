@@ -1,0 +1,5 @@
+{{ includeTemplate "generated" . }}
+case ":$PATH:" in
+	*":$HOME/.local/share/pnpm/bin:"*) ;;
+	*) PATH="$PATH:$HOME/.local/share/pnpm/bin" ;;
+esac

@@ -1,0 +1,21 @@
+{{ if ne .chezmoi.os "windows" -}}
+[".local/share/jadx"]
+type = "archive"
+url = "https://github.com/skylot/jadx/releases/download/v1.5.6/jadx-1.5.6.zip"
+checksum.sha256 = "545ea2be9c242511bc145755cf4bda2485ade42966e096f8b4d3da2a230e8974"
+exact = true
+
+[".local/bin/asdf"]
+type = "archive-file"
+url = "https://github.com/asdf-vm/asdf/releases/download/v0.20.2/asdf-v0.20.2-linux-amd64.tar.gz"
+checksum.sha256 = "6d45e6fab12f50a259b5643adf06a2e77af30a87300b4402440eda09af467a6d"
+path = "asdf"
+executable = true
+
+[".local/bin/flyctl"]
+type = "archive-file"
+url = "https://github.com/superfly/flyctl/releases/download/v0.5.2/flyctl_0.5.2_Linux_x86_64.tar.gz"
+checksum.sha256 = "e5c928a3cd49daf086395e30b5e0334f8c36d2adbfe3219d664deba1c1d56d0a"
+path = "flyctl"
+executable = true
+{{ end -}}

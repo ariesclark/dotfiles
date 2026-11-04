@@ -1,0 +1,6 @@
+{{ if ne .chezmoi.os "windows" -}}
+#!/bin/sh
+set -eu
+[ -d "$HOME/.asdf/plugins/erlang" ] || "$HOME/.local/bin/asdf" plugin add erlang https://github.com/asdf-vm/asdf-erlang.git
+[ -d "$HOME/.asdf/plugins/elixir" ] || "$HOME/.local/bin/asdf" plugin add elixir https://github.com/asdf-vm/asdf-elixir.git
+{{ end -}}

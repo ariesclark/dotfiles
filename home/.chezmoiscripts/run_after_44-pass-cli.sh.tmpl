@@ -1,0 +1,5 @@
+{{ if ne .chezmoi.os "windows" -}}
+#!/bin/sh
+set -eu
+[ -x "$HOME/.local/bin/pass-cli" ] || curl -fsSL https://proton.me/download/pass-cli/install.sh | PROTON_PASS_CLI_INSTALL_DIR="$HOME/.local/bin" bash
+{{ end -}}

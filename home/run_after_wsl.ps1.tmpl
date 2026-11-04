@@ -8,6 +8,7 @@ $PSNativeCommandUseErrorActionPreference = $true
 {{ $wsl }} chezmoi --source /mnt/windows/dotfiles/root --destination / --persistent-state /var/lib/chezmoi-root/state.boltdb --cache /var/cache/chezmoi-root --override-data '{{ includeTemplate "wsl-root-data" . }}' apply --force --no-tty
 wsl.exe -d {{ .system.wsl.distribution }} -u {{ .system.wsl.user }} --exec chezmoi init --no-tty --source /mnt/windows/dotfiles
 wsl.exe -d {{ .system.wsl.distribution }} -u {{ .system.wsl.user }} --exec chezmoi apply --force --no-tty
+{{ $wsl }} env PATH=/home/{{ .system.wsl.user }}/.local/share/vite-plus/bin:/usr/sbin:/usr/bin:/sbin:/bin PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright /home/{{ .system.wsl.user }}/.local/share/pnpm/bin/playwright-cli install-browser --with-deps chromium
 if (({{ $wsl }} sh -c 'test -e /run/wsl-restart-needed && echo restart || true') -eq 'restart') {
 	wsl.exe --shutdown
 }

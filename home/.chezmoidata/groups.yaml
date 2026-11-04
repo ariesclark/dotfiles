@@ -70,6 +70,7 @@ groups:
       - scoop:main/pester
       - scoop:main/dotnet-sdk
       - scoop:main/ffmpeg
+      - scoop:main/adb
       - scoop:extras/winscp
       - scoop:extras/mongodb-compass
 
