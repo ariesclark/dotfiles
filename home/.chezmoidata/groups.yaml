@@ -32,8 +32,14 @@ groups:
       - base
     apps:
       - scoop:extras/hwinfo
-      - scoop:extras/crystaldiskmark
       - scoop:extras/windirstat
+
+  benchmark:
+    needs:
+      - base
+    apps:
+      - winget:OCBase.OCCT.Personal
+      - scoop:extras/crystaldiskmark
 
   games-base:
     needs:
