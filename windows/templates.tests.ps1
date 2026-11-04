@@ -141,9 +141,6 @@ Describe 'taskbar.xml' {
 			'id:Microsoft.Windows.Explorer'
 			'uwa:Claude_pzs8sxrjxfjjc!Claude'
 			'link:%ALLUSERSPROFILE%\Microsoft\Windows\Start Menu\Programs\System Tools\Task Manager.lnk'
-			'link:%APPDATA%\Microsoft\Windows\Start Menu\Programs\Chromium.lnk'
-			'link:%APPDATA%\Microsoft\Windows\Start Menu\Programs\Firefox Developer Edition.lnk'
-			'link:%APPDATA%\Microsoft\Windows\Start Menu\Programs\Firefox Nightly.lnk'
 		)
 	}
 }
