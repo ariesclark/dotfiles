@@ -11,10 +11,7 @@ settings:
     defaultMode: auto
     ask:
       - Bash(git push:*)
-      - Bash(*npm add*)
-      - Bash(*npm install*)
-      - Bash(*npm i)
-      - Bash(*npm i *)
+      - Bash(*npm add *)
     deny:
       - Bash(gh pr create:*)
   model: opus[1m]
