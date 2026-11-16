@@ -19,6 +19,14 @@
 	autoStash = true
 [url "https://github.com/"]
 	insteadOf = git@github.com:
+{{- $gitVersionParts := output "git" "--version" | trim | splitList " " | last | splitList "." }}
+{{- $gitVersion := slice $gitVersionParts 0 3 | join "." }}
+{{- if semverCompare "<2.54.0" $gitVersion }}
+{{-   fail (printf "git %s is too old: hooks defined in config (hook.<name>.command) need git 2.54.0 or later. Upgrade git, then apply again." $gitVersion) }}
+{{- end }}
+[hook "no-placeholder-branches"]
+	command = ~/.config/git/hooks/no-placeholder-branches
+	event = pre-push
 [credential "https://github.com"]
 	helper =
 	helper = !gh auth git-credential
