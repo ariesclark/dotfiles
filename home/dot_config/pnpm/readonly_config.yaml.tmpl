@@ -1,0 +1,35 @@
+{{ includeTemplate "generated" . }}
+
+# https://pnpm.io/settings/dependency-resolution
+minimumReleaseAge: 1440
+minimumReleaseAgeStrict: true
+minimumReleaseAgeIgnoreMissingTime: false
+trustPolicy: no-downgrade
+trustPolicyIgnoreAfter: 43200
+trustLockfile: false
+
+# https://pnpm.io/settings/build
+strictDepBuilds: true
+dangerouslyAllowAllBuilds: false
+
+# https://pnpm.io/settings/store
+verifyStoreIntegrity: true
+strictStorePkgContentCheck: true
+
+# https://pnpm.io/settings/network
+strictSsl: true
+
+# https://pnpm.io/settings/node-modules
+virtualStoreType: global
+
+# https://pnpm.io/settings/other
+saveTypes: true
+updateNotifier: false
+
+# https://pnpm.io/cli/init
+initLicense: MIT
+{{- if lookPath .chezmoi.config.onepassword.command }}
+initAuthorName: {{ printf "%s %s" (onepasswordRead "op://personal/6enz7r76cvm7nq3gac2xckcxke/Identification/first name") (onepasswordRead "op://personal/6enz7r76cvm7nq3gac2xckcxke/Identification/last name") | quote }}
+initAuthorEmail: {{ onepasswordRead "op://personal/6enz7r76cvm7nq3gac2xckcxke/Internet Details/email" | quote }}
+initAuthorUrl: {{ onepasswordRead "op://personal/6enz7r76cvm7nq3gac2xckcxke/Internet Details/website" | quote }}
+{{- end }}

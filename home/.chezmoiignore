@@ -10,6 +10,7 @@ Documents
 .profile.d
 .claude/statusline.sh
 .config/gh
+.config/pnpm
 {{-   if not (stat (joinPath .chezmoi.homeDir "AppData/Local/Discord/Update.exe")) }}
 AppData/Roaming/discord
 {{-   end }}
