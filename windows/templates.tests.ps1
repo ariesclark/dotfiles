@@ -198,10 +198,13 @@ Describe 'WSL root source' {
 		$rootArchive = Join-Path $TestDrive 'root.tar'
 		$rootRendered = Join-Path $TestDrive 'root-rendered'
 		New-Item -ItemType Directory -Force -Path $rootRendered | Out-Null
-		chezmoi --source $rootSource --destination (Join-Path $TestDrive 'rootfs') --persistent-state (Join-Path $TestDrive 'root-state.boltdb') --override-data-file $data archive --format tar --output $rootArchive
+		$rootWork = "/tmp/chezmoi-root-test-$PID"
+		$linuxPaths = @($rootSource, $data, $rootArchive | ForEach-Object { wsl.exe -d Ubuntu -u aries --exec wslpath -u $_ })
+		wsl.exe -d Ubuntu -u aries --exec chezmoi --source $linuxPaths[0] --destination "$rootWork/rootfs" --persistent-state "$rootWork/state.boltdb" --override-data-file $linuxPaths[1] archive --format tar --output $linuxPaths[2]
 		if ($LASTEXITCODE) {
-			throw 'chezmoi could not render the root source.'
+			throw 'chezmoi could not render the root source inside WSL.'
 		}
+		wsl.exe -d Ubuntu -u aries --exec rm -rf $rootWork
 		tar -xf $rootArchive -C $rootRendered 2> $null
 		$listing = @(tar -tvf $rootArchive)
 		function Get-RootSetting([string] $Target) {
@@ -220,25 +223,15 @@ Describe 'WSL root source' {
 			'default=aries'
 			'[automount]'
 			'enabled=true'
-			'mountFsTab=true'
 			'[interop]'
 			'enabled=true'
 			'appendWindowsPath=true'
 		)
 	}
 
-	It 'mounts each declared Windows folder and the Windows checkout read-only, owned by the user' {
-		$options = 'drvfs ro,noatime,uid=1000,gid=1000,x-mount.mkdir 0 0'
-		Get-RootSetting 'etc\fstab' | Should -BeExactly @(
-			"C:/Windows/System32/OpenSSH /mnt/windows/openssh $options"
-			"$($env:LOCALAPPDATA.Replace('\', '/'))/Microsoft/WindowsApps/Agilebits.1Password_amwd9z03whsfe /mnt/windows/1password $options"
-			"E:/Scoop/apps/1password-cli/current /mnt/windows/1password-cli $options"
-			"E:/Scoop/apps/vscode/current /mnt/windows/vscode $options"
-			"E:/Scoop/apps/firefox/current /mnt/windows/firefox $options"
-			"E:/Scoop/persist/vscode/data/extensions /mnt/windows/vscode-extensions $options"
-			"E:/Scoop/apps/adb/current/platform-tools /mnt/windows/adb $options"
-			"$($repository.Replace('\', '/')) /mnt/windows/dotfiles $options"
-		)
+	It 'mounts no Windows folders of its own, since the drive mounts and the Windows PATH reach them' {
+		@($listing | Where-Object { $_ -like '*fstab*' }) | Should -BeNullOrEmpty
+		(Get-Content -Raw -LiteralPath $data | ConvertFrom-Json).wsl.PSObject.Properties.Name | Should -Not -Contain 'mounts'
 	}
 
 	It 'runs rootless Docker as the dockerd user, with its socket in a folder only the dockerd group can enter' {
@@ -297,21 +290,21 @@ Describe 'WSL root source' {
 		)
 	}
 
-	It 'reruns the fstab script when the rendered fstab changes, also through data, and only then' {
+	It 'reruns the wsl.conf script when the rendered wsl.conf changes, also through data, and only then' {
 		function Get-ScriptHash([string] $DataJson) {
 			$file = Join-Path $TestDrive 'variant.json'
 			Set-Content -LiteralPath $file -Value $DataJson -NoNewline
-			@((chezmoi --source $rootSource --override-data-file $file execute-template --file (Join-Path $rootSource 'etc\run_onchange_after_fstab.sh.tmpl')) -split "`n")[1]
+			@((chezmoi --source $rootSource --override-data-file $file execute-template --file (Join-Path $rootSource 'etc\run_onchange_after_wsl.conf.sh.tmpl')) -split "`n")[1]
 		}
 		$declared = Get-Content -Raw -LiteralPath $data | ConvertFrom-Json
-		$withMount = Get-Content -Raw -LiteralPath $data | ConvertFrom-Json
-		$withMount.wsl.mounts += [pscustomobject]@{ from = 'C:/Extra'; to = '/mnt/windows/extra' }
+		$withUser = Get-Content -Raw -LiteralPath $data | ConvertFrom-Json
+		$withUser.wsl.user = 'someone'
 		$withPackage = Get-Content -Raw -LiteralPath $data | ConvertFrom-Json
 		$withPackage.wsl.packages += 'htop'
 
 		$original = Get-ScriptHash ($declared | ConvertTo-Json -Depth 5)
 		$original | Should -Match '^# [0-9a-f]{64}$'
-		Get-ScriptHash ($withMount | ConvertTo-Json -Depth 5) | Should -Not -Be $original
+		Get-ScriptHash ($withUser | ConvertTo-Json -Depth 5) | Should -Not -Be $original
 		Get-ScriptHash ($withPackage | ConvertTo-Json -Depth 5) | Should -Be $original
 	}
 	It 'names every run_onchange_after script after a file next to it, in both sources' {
@@ -326,11 +319,6 @@ Describe 'WSL root source' {
 		}
 		$unmatched | Should -BeNullOrEmpty
 	}
-	It 'remounts the Windows folders live when fstab changes' {
-		Render-RootScript 'etc\run_onchange_after_fstab.sh.tmpl' | Should -Contain 'findmnt -rn -t 9p,drvfs -o TARGET | grep ^/mnt/windows/ | grep -vx /mnt/windows/dotfiles | xargs -r umount -l'
-		Render-RootScript 'etc\run_onchange_after_fstab.sh.tmpl' | Should -Contain 'mount -a'
-	}
-
 	It 'asks Windows for a WSL restart when wsl.conf changes' {
 		Render-RootScript 'etc\run_onchange_after_wsl.conf.sh.tmpl' | Should -Contain 'touch /run/wsl-restart-needed'
 	}
@@ -369,25 +357,39 @@ Describe 'WSL home' {
 	It 'asks nothing on Linux, where the groups and partitions do nothing' {
 		$config.data.machine.groups | Should -BeNullOrEmpty
 		$config.data.machine.partition | Should -BeFalse
-		$config.sourceDir | Should -BeExactly '/mnt/windows/dotfiles'
+		$config.sourceDir | Should -BeExactly $checkout
+		$checkout | Should -BeExactly "/mnt/$((Split-Path $PSScriptRoot).Substring(0, 1).ToLower())$((Split-Path $PSScriptRoot).Substring(2).Replace('\', '/'))"
 	}
 
-	It 'reads 1Password through the mounted op.exe, so the first apply finds it' {
-		$config.onepassword.command | Should -BeExactly '/mnt/windows/1password-cli/op.exe'
-		wsl.exe -d Ubuntu -u aries --exec test -x $config.onepassword.command
-		$LASTEXITCODE | Should -Be 0
+	It 'reads 1Password through op.exe on the Windows PATH, so the first apply finds it' {
+		$config.onepassword.command | Should -BeExactly 'op.exe'
+		wsl.exe -d Ubuntu -u aries --exec sh -c 'command -v op.exe' | Should -BeExactly '/mnt/e/Scoop/apps/1password-cli/current/op.exe'
 	}
 
-	It 'links <Link> to <Target> in ~/.local/bin, and the target is there' -ForEach @(
-		@{ Link = 'op'; Target = '/mnt/windows/1password-cli/op.exe' }
-		@{ Link = 'op-ssh-sign-wsl.exe'; Target = '/mnt/windows/1password/op-ssh-sign-wsl.exe' }
-		@{ Link = 'ssh.exe'; Target = '/mnt/windows/openssh/ssh.exe' }
-		@{ Link = 'code'; Target = '/mnt/windows/vscode/bin/code' }
-		@{ Link = 'adb'; Target = '/mnt/windows/adb/adb.exe' }
+	It 'finds <Command> on the Windows PATH, under the drive mount' -ForEach @(
+		@{ Command = 'ssh.exe'; Path = '/mnt/c/WINDOWS/System32/OpenSSH//ssh.exe' }
+		@{ Command = 'op-ssh-sign-wsl.exe'; Path = '/mnt/c/Users/aries/AppData/Local/Microsoft/WindowsApps/op-ssh-sign-wsl.exe' }
+		@{ Command = 'code'; Path = '/mnt/e/Scoop/apps/vscode/current/bin/code' }
+		@{ Command = 'adb.exe'; Path = '/mnt/e/Scoop/shims/adb.exe' }
 	) {
-		@($listing | Where-Object { $_ -like "* .local/bin/$Link -> $Target" }).Count | Should -Be 1
-		wsl.exe -d Ubuntu -u aries --exec test -e $Target
-		$LASTEXITCODE | Should -Be 0
+		wsl.exe -d Ubuntu -u aries --exec sh -c "command -v $Command" | Should -BeExactly $Path
+	}
+
+	It 'links no Windows tools into ~/.local/bin, which the Windows PATH already has' {
+		@($listing | Where-Object { $_ -match ' \.local/bin/\S+ -> /mnt/' }) | Should -BeNullOrEmpty
+	}
+
+	It 'runs a Windows tool by its name without .exe in an interactive bash, with its arguments and exit status' {
+		$tools = "$work/windows-tools"
+		Set-Content -LiteralPath (Join-Path $TestDrive 'greet.exe') -NoNewline -Value "#!/bin/sh`nprintf '[%s]' `"`$@`"`nexit 3`n"
+		wsl.exe -d Ubuntu -u aries --exec sh -c "mkdir -p $tools && cp $stubs/greet.exe $tools/greet.exe && chmod +x $tools/greet.exe"
+		wsl.exe -d Ubuntu -u aries --exec env -i "HOME=$homeRendered" "PATH=/usr/bin:/bin:$tools" bash -i -c 'greet a "b c"; echo " $?"' 2> $null | Should -BeExactly '[a][b c] 3'
+	}
+
+	It 'keeps Ubuntu''s command-not-found hint for a name with no .exe either' {
+		$output = wsl.exe -d Ubuntu -u aries --exec env -i "HOME=$homeRendered" PATH=/usr/bin:/bin bash -i -c 'sl; echo "status $?"' 2>&1 | ForEach-Object { "$_" }
+		$output | Should -Contain 'sudo apt install sl'
+		$output | Should -Contain 'status 127'
 	}
 
 	It 'puts the home tools on PATH and exports what ~/.profile.d sets, once, in <Shell>' -ForEach @(
@@ -496,7 +498,7 @@ Describe 'VS Code in WSL' {
 	}
 
 	It 'translates the extensions'' Windows path inside WSL, where the WSL scripts run from' {
-		wsl.exe -d Ubuntu -u aries --exec wslpath -u 'e:\Scoop\persist\vscode\data\extensions\ms-vscode-remote.remote-wsl' | Should -BeExactly '/mnt/windows/vscode-extensions/ms-vscode-remote.remote-wsl'
+		wsl.exe -d Ubuntu -u aries --exec wslpath -u 'e:\Scoop\persist\vscode\data\extensions\ms-vscode-remote.remote-wsl' | Should -BeExactly '/mnt/e/Scoop/persist/vscode/data/extensions/ms-vscode-remote.remote-wsl'
 	}
 }
 
@@ -506,8 +508,9 @@ Describe 'WSL trigger' {
 		$trigger = @((chezmoi --source $repository execute-template --file (Join-Path $repository 'home\run_after_wsl.ps1.tmpl')) -split "`n")
 	}
 
-	It 'mounts the Windows checkout read-only before the first apply' {
-		$trigger | Should -Contain "wsl.exe -d Ubuntu -u root --exec sh -c 'mountpoint -q /mnt/windows/dotfiles || mount -t drvfs $($repository.Replace('\', '/')) /mnt/windows/dotfiles -o ro,noatime,uid=1000,gid=1000,x-mount.mkdir'"
+	It 'finds the checkout through the drive mount before the first apply, without a mount of its own' {
+		$trigger | Should -Contain "`$checkout = wsl.exe -d Ubuntu -u root --exec wslpath -u '$($repository.Replace('\', '/'))'"
+		$trigger -join "`n" | Should -Not -Match '/mnt/windows/dotfiles|mountpoint|mount -t'
 	}
 
 	It 'installs chezmoi in the distribution at the version Windows runs' {
@@ -516,12 +519,12 @@ Describe 'WSL trigger' {
 	}
 
 	It 'applies the root source to / as root, with state and data of its own' {
-		($trigger | Where-Object { $_ -like 'wsl.exe -d Ubuntu -u root --exec chezmoi --source /mnt/windows/dotfiles/root --destination / --persistent-state /var/lib/chezmoi-root/state.boltdb --cache /var/cache/chezmoi-root --override-data *apply --force --no-tty' }).Count | Should -Be 1
+		($trigger | Where-Object { $_ -like 'wsl.exe -d Ubuntu -u root --exec chezmoi --source "$checkout/root" --destination / --persistent-state /var/lib/chezmoi-root/state.boltdb --cache /var/cache/chezmoi-root --override-data *apply --force --no-tty' }).Count | Should -Be 1
 	}
 
 	It 'applies home/ to ~ as the user after the root apply, from the same checkout, with the config init writes' {
-		$rootApply = [array]::FindIndex([string[]] $trigger, [Predicate[string]] { param($line) $line -like 'wsl.exe -d Ubuntu -u root --exec chezmoi --source /mnt/windows/dotfiles/root *' })
-		$homeInit = [array]::IndexOf($trigger, 'wsl.exe -d Ubuntu -u aries --exec chezmoi init --no-tty --source /mnt/windows/dotfiles')
+		$rootApply = [array]::FindIndex([string[]] $trigger, [Predicate[string]] { param($line) $line -like 'wsl.exe -d Ubuntu -u root --exec chezmoi --source "$checkout/root" *' })
+		$homeInit = [array]::IndexOf($trigger, 'wsl.exe -d Ubuntu -u aries --exec chezmoi init --no-tty --source $checkout')
 		$homeApply = [array]::IndexOf($trigger, 'wsl.exe -d Ubuntu -u aries --exec chezmoi apply --force --no-tty')
 		$rootApply | Should -BeGreaterThan 0
 		$homeInit | Should -BeGreaterThan $rootApply

@@ -4,3 +4,20 @@ for file in "$HOME"/.profile.d/*.sh; do
 done
 unset file
 . /etc/skel/.bashrc
+
+# Replaces the handler in /etc/bash.bashrc, then hands over to the same command-not-found it calls:
+# https://www.gnu.org/software/bash/manual/html_node/Command-Search-and-Execution.html
+command_not_found_handle() {
+	if command -v "$1.exe" > /dev/null; then
+		local windows_command="$1.exe"
+		shift
+		"$windows_command" "$@"
+		return
+	fi
+	if [ -x /usr/lib/command-not-found ]; then
+		/usr/lib/command-not-found -- "$1"
+		return
+	fi
+	printf '%s: command not found\n' "$1" >&2
+	return 127
+}

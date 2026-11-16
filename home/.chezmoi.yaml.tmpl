@@ -19,7 +19,7 @@
 sourceDir: {{ .chezmoi.workingTree | quote }}
 {{- if and (ne .chezmoi.os "windows") (contains "microsoft" (lower .chezmoi.kernel.osrelease)) }}
 onepassword:
-  command: /mnt/windows/1password-cli/op.exe
+  command: op.exe
 {{- end }}
 data:
   machine:
