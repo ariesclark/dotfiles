@@ -1,4 +1,5 @@
 #!/bin/sh
+{{ includeTemplate "generated" . }}
 
 if default_branch=$(git symbolic-ref --quiet --short "refs/remotes/$1/HEAD" 2>/dev/null); then
 	default_branch=${default_branch#"$1"/}
