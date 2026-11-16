@@ -182,7 +182,7 @@ Describe 'WSL root source' {
 		}
 	}
 
-	It 'mounts the Windows drives and what fstab lists, and appends the Windows PATH' {
+	It 'mounts the Windows drives and appends the Windows PATH' {
 		Get-RootSetting 'etc\wsl.conf' | Should -BeExactly @(
 			'[boot]'
 			'systemd=true'
