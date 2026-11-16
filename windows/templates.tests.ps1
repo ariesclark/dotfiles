@@ -1,11 +1,41 @@
 BeforeAll {
 	$source = Split-Path $PSScriptRoot
+	$signingKeyReference = 'op://personal/rczscaa2ex5o5gqxuoo5aa6xmu/public key'
+	$mockSigningKey = 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMockSigningKeyFromTheOpStub'
+	$opStubForWindows = Join-Path $TestDrive 'op.cmd'
+	Set-Content -LiteralPath $opStubForWindows -Value @(
+		'@echo off'
+		'if "%~1 %~2"=="signin --raw" ('
+		'	echo mock-session'
+		'	exit /b 0'
+		')'
+		"if `"%~1 %~2 %~3 %~4 %~5`"==`"--session mock-session read --no-newline $signingKeyReference`" ("
+		"	<nul set /p=`"$mockSigningKey`""
+		'	exit /b 0'
+		')'
+		'echo op stub: unexpected arguments: %* 1>&2'
+		'exit /b 1'
+	)
+	$opStubForLinux = Join-Path $TestDrive 'op'
+	Set-Content -LiteralPath $opStubForLinux -NoNewline -Value (@(
+		'#!/bin/sh'
+		'case "$*" in'
+		"'signin --raw') echo mock-session ;;"
+		"'--session mock-session read --no-newline $signingKeyReference') printf '%s' '$mockSigningKey' ;;"
+		'*) echo "op stub: unexpected arguments: $*" >&2; exit 1 ;;'
+		'esac'
+		''
+	) -join "`n")
+	$configWithOpStub = Join-Path $TestDrive 'chezmoi.json'
+	$liveConfig = chezmoi dump-config --format json | ConvertFrom-Json
+	$liveConfig.onepassword.command = $opStubForWindows
+	$liveConfig | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $configWithOpStub
 	$archive = Join-Path $TestDrive 'target.tar'
 	$rendered = Join-Path $TestDrive 'rendered'
 	New-Item -ItemType Directory -Force -Path $rendered | Out-Null
-	chezmoi --source $source archive --format tar --output $archive
+	chezmoi --config $configWithOpStub --source $source archive --format tar --output $archive
 	if ($LASTEXITCODE) {
-		throw 'chezmoi could not render the repo; is 1Password unlocked?'
+		throw 'chezmoi could not render the repo.'
 	}
 	tar -xf $archive -C $rendered
 	function Render([string] $Target) {
@@ -315,11 +345,17 @@ Describe 'WSL home' {
 	BeforeAll {
 		$work = "/tmp/chezmoi-home-test-$PID"
 		$homeRendered = "$work/rendered"
-		wsl.exe -d Ubuntu -u aries --exec sh -c "set -eu; mkdir -p $homeRendered; chezmoi --source /mnt/windows/dotfiles execute-template --init --file /mnt/windows/dotfiles/home/.chezmoi.yaml.tmpl < /dev/null > $work/chezmoi.yaml; chezmoi --config $work/chezmoi.yaml --persistent-state $work/state.boltdb archive --format tar --output $work/home.tar; tar -xf $work/home.tar -C $homeRendered"
-		if ($LASTEXITCODE) {
-			throw 'chezmoi could not render home/ inside WSL; is 1Password unlocked?'
-		}
+		$checkout = wsl.exe -d Ubuntu -u aries --exec wslpath -u (Split-Path $PSScriptRoot)
+		wsl.exe -d Ubuntu -u aries --exec sh -c "set -eu; mkdir -p $homeRendered; chezmoi --source $checkout execute-template --init --file $checkout/home/.chezmoi.yaml.tmpl < /dev/null > $work/chezmoi.yaml"
 		$config = (wsl.exe -d Ubuntu -u aries --exec chezmoi --config "$work/chezmoi.yaml" dump-config --format json) -join "`n" | ConvertFrom-Json
+		$withOpStub = (wsl.exe -d Ubuntu -u aries --exec chezmoi --config "$work/chezmoi.yaml" dump-config --format json) -join "`n" | ConvertFrom-Json
+		$withOpStub.onepassword.command = "$work/op"
+		$withOpStub | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath (Join-Path $TestDrive 'chezmoi-linux.json')
+		$stubs = wsl.exe -d Ubuntu -u aries --exec wslpath -u $TestDrive
+		wsl.exe -d Ubuntu -u aries --exec sh -c "set -eu; cp $stubs/op $work/op; chmod +x $work/op; chezmoi --config $stubs/chezmoi-linux.json --persistent-state $work/state.boltdb archive --format tar --output $work/home.tar; tar -xf $work/home.tar -C $homeRendered"
+		if ($LASTEXITCODE) {
+			throw 'chezmoi could not render home/ inside WSL.'
+		}
 		$listing = @(wsl.exe -d Ubuntu -u aries --exec tar -tvf "$work/home.tar")
 		function Render-Home([string] $Target) {
 			(wsl.exe -d Ubuntu -u aries --exec cat "$homeRendered/$Target") -join "`n"
@@ -378,7 +414,7 @@ Describe 'WSL home' {
 	}
 
 	It 'installs Vite+ for Node and pnpm once, without letting it edit the shell profiles' {
-		@((wsl.exe -d Ubuntu -u aries --exec chezmoi --config "$work/chezmoi.yaml" execute-template --file /mnt/windows/dotfiles/home/.chezmoiscripts/run_after_40-vite-plus.sh.tmpl) | Where-Object { $_ }) | Should -BeExactly @(
+		@((wsl.exe -d Ubuntu -u aries --exec chezmoi --config "$work/chezmoi.yaml" execute-template --file "$checkout/home/.chezmoiscripts/run_after_40-vite-plus.sh.tmpl") | Where-Object { $_ }) | Should -BeExactly @(
 			'#!/bin/sh'
 			'set -eu'
 			'[ -x "$HOME/.local/share/vite-plus/current/bin/vp" ] || curl -fsSL https://vite.plus | VP_NODE_MANAGER=yes VP_PM_MANAGER=yes VP_SELF_SETUP_NO_MODIFY_PATH=1 bash'
@@ -386,7 +422,7 @@ Describe 'WSL home' {
 	}
 
 	It 'installs uv once into ~/.local/bin, without letting it edit the shell profiles' {
-		@((wsl.exe -d Ubuntu -u aries --exec chezmoi --config "$work/chezmoi.yaml" execute-template --file /mnt/windows/dotfiles/home/.chezmoiscripts/run_after_42-uv.sh.tmpl) | Where-Object { $_ }) | Should -BeExactly @(
+		@((wsl.exe -d Ubuntu -u aries --exec chezmoi --config "$work/chezmoi.yaml" execute-template --file "$checkout/home/.chezmoiscripts/run_after_42-uv.sh.tmpl") | Where-Object { $_ }) | Should -BeExactly @(
 			'#!/bin/sh'
 			'set -eu'
 			'[ -x "$HOME/.local/bin/uv" ] || curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR="$HOME/.local/bin" UV_NO_MODIFY_PATH=1 sh'
@@ -396,7 +432,7 @@ Describe 'WSL home' {
 	It 'unpacks the pinned jadx release and links its launcher into ~/.local/bin' {
 		@($listing | Where-Object { $_ -like '-rwx* .local/share/jadx/bin/jadx' }).Count | Should -Be 1
 		@($listing | Where-Object { $_ -like '* .local/bin/jadx -> /home/aries/.local/share/jadx/bin/jadx' }).Count | Should -Be 1
-		$external = (wsl.exe -d Ubuntu -u aries --exec sh -c "chezmoi --config $work/chezmoi.yaml execute-template --file /mnt/windows/dotfiles/home/.chezmoiexternal.toml.tmpl | python3 -I -c 'import json, sys, tomllib; print(json.dumps(tomllib.load(sys.stdin.buffer)))'") | ConvertFrom-Json
+		$external = (wsl.exe -d Ubuntu -u aries --exec sh -c "chezmoi --config $work/chezmoi.yaml execute-template --file $checkout/home/.chezmoiexternal.toml.tmpl | python3 -I -c 'import json, sys, tomllib; print(json.dumps(tomllib.load(sys.stdin.buffer)))'") | ConvertFrom-Json
 		$jadx = $external.'.local/share/jadx'
 		$jadx.url | Should -BeExactly 'https://github.com/skylot/jadx/releases/download/v1.5.6/jadx-1.5.6.zip'
 		$jadx.checksum.sha256 | Should -BeExactly '545ea2be9c242511bc145755cf4bda2485ade42966e096f8b4d3da2a230e8974'
@@ -410,11 +446,10 @@ Describe 'WSL home' {
 
 	It 'signs git commits through 1Password on Windows, with the key from 1Password' {
 		$git = Render-Home '.config/git/config'
-		$git | Should -Match '(?m)^\tsigningkey = ssh-ed25519 AAAAC3Nza\S+$'
+		$git | Should -Match "(?m)^\tsigningkey = $([regex]::Escape($mockSigningKey))$"
 		$git | Should -Match '(?m)^\tprogram = op-ssh-sign-wsl\.exe$'
 		$git | Should -Match '(?m)^\tsshCommand = ssh\.exe$'
-		$key = ([regex]::Match($git, '(?m)^\tsigningkey = (.+)$')).Groups[1].Value
-		((Render-Home '.config/git/allowed_signers').Trim() -split "`n")[-1] | Should -BeExactly "me@ariesclark.com namespaces=`"git`" $key"
+		((Render-Home '.config/git/allowed_signers').Trim() -split "`n")[-1] | Should -BeExactly "me@ariesclark.com namespaces=`"git`" $mockSigningKey"
 	}
 
 	It 'gives Claude Code its instructions and settings' {
@@ -542,14 +577,13 @@ Describe 'git' {
 
 	It 'reads the signing key from 1Password instead of keeping it in the repo' {
 		Get-Content (Join-Path $source 'home\dot_config\git\readonly_config.tmpl') -Raw | Should -Not -Match 'AAAAC3Nza'
-		$config | Should -Match '(?m)^\tsigningkey = ssh-ed25519 AAAAC3Nza\S+$'
+		$config | Should -Match "(?m)^\tsigningkey = $([regex]::Escape($mockSigningKey))$"
 	}
 
 	It 'trusts the signing key for the email, only for git signatures' {
 		$config | Should -Match '(?m)^\tallowedSignersFile = ~/\.config/git/allowed_signers$'
 		$signers = Render '.config\git\allowed_signers'
-		$key = ([regex]::Match($config, '(?m)^\tsigningkey = (.+)$')).Groups[1].Value
-		($signers.Trim() -split "`n")[-1] | Should -BeExactly "me@ariesclark.com namespaces=`"git`" $key"
+		($signers.Trim() -split "`n")[-1] | Should -BeExactly "me@ariesclark.com namespaces=`"git`" $mockSigningKey"
 	}
 
 	It 'leaves the WSL settings out on Windows' {
