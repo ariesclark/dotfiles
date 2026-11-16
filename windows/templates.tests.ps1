@@ -64,7 +64,7 @@ Describe 'generated label' {
 		$sources = Get-ChildItem -Recurse -File -Force $sourceRoot | Where-Object {
 			$folders = [System.IO.Path]::GetRelativePath($sourceRoot, $_.DirectoryName).Split([System.IO.Path]::DirectorySeparatorChar)
 			-not ($folders | Where-Object { $_.StartsWith('.') -and $_ -ne '.' }) -and
-			$_.Name -notlike 'modify_*' -and $_.Name -notlike 'run_*' -and $_.Name -notlike 'symlink_*' -and $_.Name -notlike '.chezmoi*' -and $_.Name -ne 'settings.yaml' -and $_.FullName -notlike '*\GitHub CLI\config.yml.tmpl'
+			$_.Name -notlike 'modify_*' -and $_.Name -notlike '*.json.tmpl' -and $_.Name -notlike 'run_*' -and $_.Name -notlike 'symlink_*' -and $_.Name -notlike '.chezmoi*' -and $_.Name -ne 'settings.yaml' -and $_.FullName -notlike '*\GitHub CLI\config.yml.tmpl'
 		}
 		$sources.Count | Should -BeGreaterThan 10
 		$sources | Where-Object { (Get-Content -Raw $_.FullName) -notmatch '\{\{-? includeTemplate "generated" \. -?\}\}' } | ForEach-Object Name | Should -BeNullOrEmpty

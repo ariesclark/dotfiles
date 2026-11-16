@@ -1,4 +1,3 @@
-{{- /* chezmoi:modify-template */ -}}
 {{- $declared := include "dot_claude/settings.yaml" | fromYaml -}}
 {{- $settings := $declared.settings -}}
 {{- if eq .chezmoi.os "linux" -}}
@@ -9,4 +8,4 @@
 {{-   end -}}
 {{-   $settings = mergeOverwrite $settings $linux -}}
 {{- end -}}
-{{- includeTemplate "merge-json" (dict "current" .chezmoi.stdin "values" $settings) }}
+{{ $settings | toPrettyJson }}

@@ -1,12 +1,20 @@
 settings:
   $schema: https://json.schemastore.org/claude-code-settings.json
-  env:
-    DO_NOT_TRACK: '0'
-  attribution:
-    commit: ''
-    pr: ''
-    sessionUrl: false
-  includeGitInstructions: false
+
+  model: opus[1m]
+  effortLevel: medium
+  switchModelsOnFlag: false
+
+  outputStyle: Concise
+  theme: auto
+  tui: fullscreen
+  verbose: false
+  skipWorkflowUsageWarning: true
+
+  remoteControlAtStartup: true
+  inputNeededNotifEnabled: true
+  agentPushNotifEnabled: true
+
   permissions:
     defaultMode: auto
     ask:
@@ -14,52 +22,6 @@ settings:
       - Bash(*npm add *)
     deny:
       - Bash(gh pr create:*)
-  model: opus[1m]
-  disableClaudeAiConnectors: true
-  worktree:
-    bgIsolation: none
-  effortLevel: medium
-  outputStyle: Concise
-  switchModelsOnFlag: false
-  tui: fullscreen
-  theme: auto
-  verbose: false
-  feedbackSurveyRate: 0
-  skipWorkflowUsageWarning: true
-  remoteControlAtStartup: true
-  inputNeededNotifEnabled: true
-  agentPushNotifEnabled: true
-  enabledPlugins:
-    claude-md-management@claude-plugins-official: true
-    plugin-dev@claude-plugins-official: false
-    pulumi@pulumi-agent-skills: true
-    rust-analyzer-lsp@claude-plugins-official: false
-    sentry-cli@claude-plugins-official: false
-    skill-creator@claude-plugins-official: false
-    paper-desktop@paper: false
-    cc-plugin-you-should-know@builtin: true
-  extraKnownMarketplaces:
-    ast-grep-marketplace:
-      source:
-        source: git
-        url: https://github.com/ast-grep/agent-skill.git
-    chrome-devtools-plugins:
-      source:
-        source: github
-        repo: ChromeDevTools/chrome-devtools-mcp
-    cloudflare:
-      source:
-        source: github
-        repo: cloudflare/skills
-      autoUpdate: true
-    pulumi-agent-skills:
-      source:
-        source: github
-        repo: pulumi/agent-skills
-    paper:
-      source:
-        source: github
-        repo: paper-design/agent-plugins
   autoMode:
     soft_deny:
       - $defaults
@@ -75,18 +37,83 @@ settings:
         Never create a pull request. This covers `gh pr create` and any equivalent API call, such as `gh api` or
         `curl` POSTing to a `/pulls` endpoint.
 
+  includeGitInstructions: false
+  attribution:
+    commit: ''
+    pr: ''
+    sessionUrl: false
+  worktree:
+    bgIsolation: none
+
+  hooks:
+    UserPromptSubmit:
+      - hooks:
+          - type: command
+            command: >-
+              echo '{"hookSpecificOutput":{"hookEventName":"UserPromptSubmit","additionalContext":"If this message
+              moves the conversation to a different goal, or back to an earlier one, invoke the renamer skill before
+              starting on it. Skip it when the message continues, fixes or refines the current goal."}}'
+
+  disableClaudeAiConnectors: true
+  enabledPlugins:
+    cc-plugin-you-should-know@builtin: true
+    claude-md-management@claude-plugins-official: true
+    paper-desktop@paper: false
+    plugin-dev@claude-plugins-official: false
+    pulumi@pulumi-agent-skills: true
+    rust-analyzer-lsp@claude-plugins-official: false
+    sentry-cli@claude-plugins-official: false
+    skill-creator@claude-plugins-official: false
+  extraKnownMarketplaces:
+    ast-grep-marketplace:
+      source:
+        source: git
+        url: https://github.com/ast-grep/agent-skill.git
+    chrome-devtools-plugins:
+      source:
+        source: github
+        repo: ChromeDevTools/chrome-devtools-mcp
+    cloudflare:
+      source:
+        source: github
+        repo: cloudflare/skills
+      autoUpdate: true
+    paper:
+      source:
+        source: github
+        repo: paper-design/agent-plugins
+    pulumi-agent-skills:
+      source:
+        source: github
+        repo: pulumi/agent-skills
+
+  env:
+    # Overrides the DO_NOT_TRACK=1 set system-wide in dot_config/windows/readonly_configuration.winget.tmpl and
+    # dot_profile.d/readonly_exports.sh.tmpl. It turns off feature-flag fetching along with telemetry, and with
+    # it Remote Control auto-connect and other flag-gated features:
+    # https://code.claude.com/docs/en/env-vars#features-that-need-feature-flag-fetching
+    DO_NOT_TRACK: '0'
+  feedbackSurveyRate: 0
+  # 0 fails validation, so the largest practical value stands in for never:
+  # https://code.claude.com/docs/en/settings-reference#cleanupperioddays
+  cleanupPeriodDays: 36500
+  # 0 sets no age limit on Claude Desktop and Cowork transcripts:
+  # https://code.claude.com/docs/en/settings-reference#desktopsessioncleanupperioddays
+  desktopSessionCleanupPeriodDays: 0
+
 linux:
   statusLine:
     type: command
     command: .claude/statusline.sh
+
   enabledPlugins:
     github@ariesclark: true
     guardrails@ariesclark: true
+    kagi@kagi-cli: true
     papercuts@ariesclark: true
     prior-art@ariesclark: true
     why@ariesclark: true
     writing@ariesclark: true
-    kagi@kagi-cli: true
   extraKnownMarketplaces:
     ariesclark:
       source:
