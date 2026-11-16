@@ -1,8 +1,8 @@
 {{ includeTemplate "generated" . }}
 [user]
-	name = Aries Clark
-	email = me@ariesclark.com
 {{- if lookPath .chezmoi.config.onepassword.command }}
+	name = {{ onepasswordRead "op://personal/6enz7r76cvm7nq3gac2xckcxke/Identification/first name" }} {{ onepasswordRead "op://personal/6enz7r76cvm7nq3gac2xckcxke/Identification/last name" }}
+	email = {{ onepasswordRead "op://personal/6enz7r76cvm7nq3gac2xckcxke/Internet Details/email" }}
 	signingkey = {{ onepasswordRead "op://personal/rczscaa2ex5o5gqxuoo5aa6xmu/public key" }}
 {{- end }}
 [gpg]
