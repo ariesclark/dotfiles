@@ -1,7 +1,14 @@
 BeforeAll {
 	$source = Split-Path $PSScriptRoot
-	$signingKeyReference = 'op://personal/rczscaa2ex5o5gqxuoo5aa6xmu/public key'
 	$mockSigningKey = 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMockSigningKeyFromTheOpStub'
+	$mockEmail = 'stub@example.com'
+	$opStubSecrets = [ordered]@{
+		'op://personal/rczscaa2ex5o5gqxuoo5aa6xmu/public key' = $mockSigningKey
+		'op://personal/6enz7r76cvm7nq3gac2xckcxke/Identification/first name' = 'Stub'
+		'op://personal/6enz7r76cvm7nq3gac2xckcxke/Identification/last name' = 'Person'
+		'op://personal/6enz7r76cvm7nq3gac2xckcxke/Internet Details/email' = $mockEmail
+		'op://personal/6enz7r76cvm7nq3gac2xckcxke/Internet Details/website' = 'https://example.com'
+	}
 	$opStubForWindows = Join-Path $TestDrive 'op.cmd'
 	Set-Content -LiteralPath $opStubForWindows -Value @(
 		'@echo off'
@@ -9,10 +16,12 @@ BeforeAll {
 		'	echo mock-session'
 		'	exit /b 0'
 		')'
-		"if `"%~1 %~2 %~3 %~4 %~5`"==`"--session mock-session read --no-newline $signingKeyReference`" ("
-		"	<nul set /p=`"$mockSigningKey`""
-		'	exit /b 0'
-		')'
+		foreach ($secret in $opStubSecrets.GetEnumerator()) {
+			"if `"%~1 %~2 %~3 %~4 %~5`"==`"--session mock-session read --no-newline $($secret.Key)`" ("
+			"	<nul set /p=`"$($secret.Value)`""
+			'	exit /b 0'
+			')'
+		}
 		'echo op stub: unexpected arguments: %* 1>&2'
 		'exit /b 1'
 	)
@@ -21,7 +30,9 @@ BeforeAll {
 		'#!/bin/sh'
 		'case "$*" in'
 		"'signin --raw') echo mock-session ;;"
-		"'--session mock-session read --no-newline $signingKeyReference') printf '%s' '$mockSigningKey' ;;"
+		foreach ($secret in $opStubSecrets.GetEnumerator()) {
+			"'--session mock-session read --no-newline $($secret.Key)') printf '%s' '$($secret.Value)' ;;"
+		}
 		'*) echo "op stub: unexpected arguments: $*" >&2; exit 1 ;;'
 		'esac'
 		''
@@ -451,7 +462,7 @@ Describe 'WSL home' {
 		$git | Should -Match "(?m)^\tsigningkey = $([regex]::Escape($mockSigningKey))$"
 		$git | Should -Match '(?m)^\tprogram = op-ssh-sign-wsl\.exe$'
 		$git | Should -Match '(?m)^\tsshCommand = ssh\.exe$'
-		((Render-Home '.config/git/allowed_signers').Trim() -split "`n")[-1] | Should -BeExactly "me@ariesclark.com namespaces=`"git`" $mockSigningKey"
+		((Render-Home '.config/git/allowed_signers').Trim() -split "`n")[-1] | Should -BeExactly "$mockEmail namespaces=`"git`" $mockSigningKey"
 	}
 
 	It 'gives Claude Code its instructions and settings' {
@@ -574,8 +585,9 @@ Describe 'git' {
 		$config | Should -Match '(?m)^\tsshCommand = C:/Windows/System32/OpenSSH/ssh\.exe$'
 	}
 
-	It 'keeps the email and the signing key on lines of their own' {
-		$config | Should -Match '(?m)^\temail = me@ariesclark\.com$'
+	It 'reads the name and email from 1Password, on lines of their own' {
+		$config | Should -Match '(?m)^\tname = Stub Person$'
+		$config | Should -Match "(?m)^\temail = $([regex]::Escape($mockEmail))$"
 	}
 
 	It 'reads the signing key from 1Password instead of keeping it in the repo' {
@@ -586,7 +598,7 @@ Describe 'git' {
 	It 'trusts the signing key for the email, only for git signatures' {
 		$config | Should -Match '(?m)^\tallowedSignersFile = ~/\.config/git/allowed_signers$'
 		$signers = Render '.config\git\allowed_signers'
-		($signers.Trim() -split "`n")[-1] | Should -BeExactly "me@ariesclark.com namespaces=`"git`" $mockSigningKey"
+		($signers.Trim() -split "`n")[-1] | Should -BeExactly "$mockEmail namespaces=`"git`" $mockSigningKey"
 	}
 
 	It 'leaves the WSL settings out on Windows' {
