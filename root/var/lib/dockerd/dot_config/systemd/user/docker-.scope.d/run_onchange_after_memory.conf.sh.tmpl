@@ -1,0 +1,4 @@
+#!/bin/sh
+# {{ includeTemplate "adjacent-hash" . }}
+set -eu
+systemctl --user -M dockerd@ daemon-reload
