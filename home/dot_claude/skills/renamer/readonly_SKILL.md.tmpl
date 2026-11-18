@@ -9,7 +9,8 @@ Retitle this chat via `mcp__ccd_session_mgmt__get_session` and `set_session_titl
 
 - Write a natural phrase, at most 48 characters, in sentence case with no filler.
 - Keep the keywords someone would search for: the tools, products, repos and files the chat was about, spelled as they are. When space runs short, cut a generic word before a keyword.
-- Preserve history: list every goal the chat has had, in order, never dropping one. Give each an imperative verb and what actually landed, never a bare noun, and rephrase freely to fit (`Try portless, freeze pnpm lockfile, fix Renovate`).
+- Preserve history: list every goal the chat has had, in order, never dropping one outside a fork. Give each an imperative verb and what actually landed, never a bare noun, and rephrase freely to fit (`Try portless, freeze pnpm lockfile, fix Renovate`).
+- In a fork, the app already shows the parent chat's title. If the fork carries on the parent's goal, title it as above. If it changed direction, lead with the goals since the fork, and cut the goals from before it first when space runs short.
 - Use a Unicode symbol in place of words it says just as plainly, to buy room for keywords: `≥` and `≤` for at least and at most, `→` for to or into, `↔` for between, `×` for times, `≈` for about (`Open ports ≥80 via sysctl.d, audit Pester tests`, `Move fnm → mise, pin Node 22`). Never decorate: no emoji, and no symbol that stands for nothing.
 - Hint: $ARGUMENTS
 - If the title is unchanged, skip the rename. Otherwise say `Renamed to …` in one line and carry on.

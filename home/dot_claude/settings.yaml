@@ -46,6 +46,14 @@ settings:
     bgIsolation: none
 
   hooks:
+    SessionStart:
+      - matcher: fork
+        hooks:
+          - type: command
+            command: >-
+              echo '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"This chat is a fork,
+              and the app already shows the title of the chat it came from. Invoke the renamer skill once the first
+              message here shows where this fork is headed."}}'
     UserPromptSubmit:
       - hooks:
           - type: command
