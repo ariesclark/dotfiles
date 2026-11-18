@@ -15,13 +15,13 @@ system:
     distribution: Ubuntu
     user: aries
     drive: w
-    memory: 40%
+    memory: 50%
     swap: 4GB
     docker:
-      memory: 70%
+      memory: 50%
       swap: 2GB
       container:
-        memory: 35%
+        memory: 25%
         swap: 1GB
     packages:
       - git
