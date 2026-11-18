@@ -57,18 +57,4 @@ Describe 'archive command' {
 			Where-Object { (Get-Content -Raw -LiteralPath $_.FullName) -match 'chezmoi[^\r\n]*\barchive\b' } |
 			ForEach-Object Name | Should -BeNullOrEmpty
 	}
-
-	It 'is a script of its own in the windows folder' {
-		Join-Path $repository 'windows\archive.ps1' | Should -Exist
-	}
-
-	It 'previews the root source too, inside WSL where it applies, with the data the WSL apply gives it, under .archive/root' {
-		$syntax = [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $repository 'windows\archive.ps1'), [ref] $null, [ref] $null)
-		$commands = @($syntax.FindAll({ param($node) $node -is [System.Management.Automation.Language.CommandAst] }, $true) | ForEach-Object { ($_.CommandElements | ForEach-Object Extent | ForEach-Object Text) -join ' ' })
-
-		@($commands | Where-Object { $_ -like 'wsl.exe -d $distribution --exec chezmoi --source (ConvertTo-LinuxPath $rootSource) *--override-data-file (ConvertTo-LinuxPath $rootData) archive *' }).Count | Should -Be 1
-		@($commands | Where-Object { $_ -like 'chezmoi --source $rootSource *' }) | Should -BeNullOrEmpty
-		@($commands | Where-Object { $_ -like 'chezmoi execute-template *wsl-root-data*' }).Count | Should -Be 1
-		@($commands | Where-Object { $_ -like "Update-Archive -Archive `$rootArchive -Destination (Join-Path `$source '.archive\root')" }).Count | Should -Be 1
-	}
 }

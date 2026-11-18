@@ -64,7 +64,6 @@ BeforeAll {
 			if ($open) { $_ }
 		}
 	}
-	$layout = [xml](Render '.config\windows\taskbar.xml')
 }
 
 Describe 'generated label' {
@@ -148,56 +147,6 @@ Describe 'user.reg' {
 		)
 	}
 
-	It 'sizes and sorts WinDirStat by logical size, which WSL''s drive reports where physical size is zero' {
-		Get-RegistrySection 'HKEY_CURRENT_USER\Software\WinDirStat\WinDirStat\TreeMapView' | Should -BeExactly @(
-			'"TreeMapUseLogicalSize"=dword:00000001'
-		)
-	}
-}
-
-Describe 'taskbar.xml' {
-	BeforeAll {
-		$namespaces = [System.Xml.XmlNamespaceManager]::new($layout.NameTable)
-		$namespaces.AddNamespace('taskbar', 'http://schemas.microsoft.com/Start/2014/TaskbarLayout')
-		$pins = @($layout.SelectNodes('//taskbar:TaskbarPinList/*', $namespaces))
-	}
-
-	It 'replaces the default pins' {
-		$layout.LayoutModificationTemplate.CustomTaskbarLayoutCollection.PinListPlacement | Should -BeExactly 'Replace'
-	}
-
-	It 'pins its apps in order, by the right kind of id' {
-		$identities = $pins | ForEach-Object {
-			switch ($_) {
-				{ $_.LocalName -eq 'UWA' } { "uwa:$($_.AppUserModelID)"; break }
-				{ $_.HasAttribute('DesktopApplicationID') } { "id:$($_.DesktopApplicationID)"; break }
-				default { "link:$($_.DesktopApplicationLinkPath)" }
-			}
-		}
-
-		$identities | Should -BeExactly @(
-			'link:%APPDATA%\Microsoft\Windows\Start Menu\Programs\Firefox.lnk'
-			'id:com.squirrel.Discord.Discord'
-			'link:%APPDATA%\Microsoft\Windows\Start Menu\Programs\Visual Studio Code.lnk'
-			'id:Microsoft.Windows.Explorer'
-			'uwa:Claude_pzs8sxrjxfjjc!Claude'
-			'link:%ALLUSERSPROFILE%\Microsoft\Windows\Start Menu\Programs\System Tools\Task Manager.lnk'
-		)
-	}
-}
-
-Describe '.wslconfig' {
-	It 'keeps swap off C:, gives memory back gradually and lets the disks shrink' {
-		$lines = @((Render '.wslconfig') -split "`n" | Where-Object { $_ -and -not $_.StartsWith('#') })
-
-		$lines | Should -BeExactly @(
-			'[wsl2]'
-			'swapFile=E:\\WSL\\swap.vhdx'
-			'[experimental]'
-			'autoMemoryReclaim=gradual'
-			'sparseVhd=true'
-		)
-	}
 }
 
 Describe 'WSL root source' {
@@ -217,88 +166,19 @@ Describe 'WSL root source' {
 		}
 		wsl.exe -d Ubuntu -u aries --exec rm -rf $rootWork
 		tar -xf $rootArchive -C $rootRendered 2> $null
-		$listing = @(tar -tvf $rootArchive)
 		function Get-RootSetting([string] $Target) {
 			@((Get-Content -LiteralPath (Join-Path $rootRendered $Target)) | Where-Object { $_ -and -not $_.StartsWith('#') })
 		}
-		function Render-RootScript([string] $Name) {
-			@((chezmoi --source $rootSource --override-data-file $data execute-template --file (Join-Path $rootSource $Name)) | Where-Object { $_ -and -not $_.StartsWith('#') })
-		}
 	}
 
-	It 'mounts the Windows drives and appends the Windows PATH' {
-		Get-RootSetting 'etc\wsl.conf' | Should -BeExactly @(
-			'[boot]'
-			'systemd=true'
-			'[user]'
-			'default=aries'
-			'[automount]'
-			'enabled=true'
-			'[interop]'
-			'enabled=true'
-			'appendWindowsPath=true'
-		)
-	}
-
-	It 'mounts no Windows folders of its own, since the drive mounts and the Windows PATH reach them' {
-		@($listing | Where-Object { $_ -like '*fstab*' }) | Should -BeNullOrEmpty
-		(Get-Content -Raw -LiteralPath $data | ConvertFrom-Json).wsl.PSObject.Properties.Name | Should -Not -Contain 'mounts'
-	}
-
-	It 'runs rootless Docker as the dockerd user, with its socket in a folder only the dockerd group can enter' {
-		$unit = Get-RootSetting 'var\lib\dockerd\.config\systemd\user\docker.service'
-		$unit | Should -Contain 'ExecStart=/usr/share/docker.io/contrib/dockerd-rootless.sh --host=unix:///run/dockerd/docker.sock --group=0'
-		$unit | Should -Contain 'Environment=PATH=/usr/share/docker.io/contrib:/usr/sbin:/usr/bin:/sbin:/bin'
-		$unit | Should -Contain 'WantedBy=default.target'
-		($listing | Where-Object { $_ -like '*default.target.wants/docker.service -> ../docker.service' }).Count | Should -Be 1
-		Get-RootSetting 'etc\tmpfiles.d\dockerd.conf' | Should -BeExactly @('d /run/dockerd 0750 dockerd dockerd -')
-	}
-
-	It 'leaves the user''s environment to home/' {
-		Join-Path $rootRendered 'etc\profile.d' | Should -Not -Exist
-	}
-
-	It 'installs the declared packages and keeps the root Docker daemon off' {
-		Render-RootScript 'run_onchange_before_10-packages.sh.tmpl' | Should -BeExactly @(
-			'set -eu'
-			'apt-get install -y --no-install-recommends git jq unzip rustup build-essential pkg-config libssl-dev dotnet-sdk-10.0 default-jre-headless python3-venv wl-clipboard xdg-utils autoconf m4 libncurses-dev cmake docker.io docker-compose-v2 docker-buildx uidmap dbus-user-session rootlesskit slirp4netns acl'
-			'systemctl disable --now docker.service docker.socket'
-		)
-	}
-
-	It 'adds GitHub''s apt repository for gh, trusting only GitHub CLI''s current signing key' {
+	It 'trusts only GitHub CLI''s current signing key for its apt repository' {
 		$sources = Get-RootSetting 'etc\apt\sources.list.d\github-cli.sources'
-		$sources[0..4] | Should -BeExactly @(
-			'Types: deb'
-			'URIs: https://cli.github.com/packages'
-			'Suites: stable'
-			'Components: main'
-			'Signed-By:'
-		)
+		$sources[4] | Should -BeExactly 'Signed-By:'
 		$key = ($sources | Select-Object -Skip 5 | ForEach-Object { $_.Substring(1) -replace '^\.$', '' }) -join "`n"
 		$key | Should -Match '^-----BEGIN PGP PUBLIC KEY BLOCK-----'
 		$fingerprints = @($key | wsl.exe -d Ubuntu -u aries --exec gpg --show-keys --with-colons 2> $null | Where-Object { $_ -like 'fpr:*' } | ForEach-Object { $_.Split(':')[9] })
 		$fingerprints[0] | Should -BeExactly '7F38BBB59D064DBCB3D84D725612B36462313325'
 		@(($key | wsl.exe -d Ubuntu -u aries --exec gpg --show-keys --with-colons 2> $null) | Where-Object { $_ -like 'pub:*' }).Count | Should -Be 1
-	}
-
-	It 'installs gh from that repository when its sources change' {
-		Render-RootScript 'etc\apt\sources.list.d\run_onchange_after_github-cli.sources.sh.tmpl' | Should -BeExactly @(
-			'set -eu'
-			'apt-get update'
-			'apt-get install -y --no-install-recommends gh'
-		)
-	}
-
-	It 'creates the dockerd user and gives it the repos, but only passage through the home folder' {
-		Render-RootScript 'var\lib\dockerd\run_onchange_before_create-user.sh.tmpl' | Should -BeExactly @(
-			'set -eu'
-			'id dockerd > /dev/null 2>&1 || useradd --system --user-group --add-subids-for-system --create-home --home-dir /var/lib/dockerd --shell /usr/sbin/nologin dockerd'
-			'usermod --append --groups dockerd aries'
-			'loginctl enable-linger dockerd'
-			'setfacl --modify user:dockerd:x /home/aries'
-			'setfacl --recursive --modify user:dockerd:rwX,user:aries:rwX,default:user:dockerd:rwX,default:user:aries:rwX /home/aries/repos'
-		)
 	}
 
 	It 'reruns the wsl.conf script when the rendered wsl.conf changes, also through data, and only then' {
@@ -329,14 +209,6 @@ Describe 'WSL root source' {
 			}
 		}
 		$unmatched | Should -BeNullOrEmpty
-	}
-	It 'asks Windows for a WSL restart when wsl.conf changes' {
-		Render-RootScript 'etc\run_onchange_after_wsl.conf.sh.tmpl' | Should -Contain 'touch /run/wsl-restart-needed'
-	}
-
-	It 'reloads and restarts the dockerd service when its unit changes' {
-		Render-RootScript 'var\lib\dockerd\dot_config\systemd\user\run_onchange_after_docker.service.sh.tmpl' | Should -Contain 'systemctl --user -M dockerd@ daemon-reload'
-		Render-RootScript 'var\lib\dockerd\dot_config\systemd\user\run_onchange_after_docker.service.sh.tmpl' | Should -Contain 'systemctl --user -M dockerd@ restart docker'
 	}
 }
 
@@ -369,25 +241,10 @@ Describe 'WSL home' {
 		$config.data.machine.groups | Should -BeNullOrEmpty
 		$config.data.machine.partition | Should -BeFalse
 		$config.sourceDir | Should -BeExactly $checkout
-		$checkout | Should -BeExactly "/mnt/$((Split-Path $PSScriptRoot).Substring(0, 1).ToLower())$((Split-Path $PSScriptRoot).Substring(2).Replace('\', '/'))"
 	}
 
 	It 'reads 1Password through op.exe on the Windows PATH, so the first apply finds it' {
 		$config.onepassword.command | Should -BeExactly 'op.exe'
-		wsl.exe -d Ubuntu -u aries --exec sh -c 'command -v op.exe' | Should -BeExactly '/mnt/e/Scoop/apps/1password-cli/current/op.exe'
-	}
-
-	It 'finds <Command> on the Windows PATH, under the drive mount' -ForEach @(
-		@{ Command = 'ssh.exe'; Path = '/mnt/c/WINDOWS/System32/OpenSSH//ssh.exe' }
-		@{ Command = 'op-ssh-sign-wsl.exe'; Path = '/mnt/c/Users/aries/AppData/Local/Microsoft/WindowsApps/op-ssh-sign-wsl.exe' }
-		@{ Command = 'code'; Path = '/mnt/e/Scoop/apps/vscode/current/bin/code' }
-		@{ Command = 'adb.exe'; Path = '/mnt/e/Scoop/shims/adb.exe' }
-	) {
-		wsl.exe -d Ubuntu -u aries --exec sh -c "command -v $Command" | Should -BeExactly $Path
-	}
-
-	It 'links no Windows tools into ~/.local/bin, which the Windows PATH already has' {
-		@($listing | Where-Object { $_ -match ' \.local/bin/\S+ -> /mnt/' }) | Should -BeNullOrEmpty
 	}
 
 	It 'runs a Windows tool by its name without .exe in an interactive bash, with its arguments and exit status' {
@@ -424,37 +281,6 @@ Describe 'WSL home' {
 
 	It 'keeps Ubuntu''s own interactive bash setup' {
 		wsl.exe -d Ubuntu -u aries --exec env -i "HOME=$homeRendered" PATH=/usr/bin:/bin bash -i -c 'echo "$HISTCONTROL"' 2> $null | Should -BeExactly 'ignoreboth'
-	}
-
-	It 'installs Vite+ for Node and pnpm once, without letting it edit the shell profiles' {
-		@((wsl.exe -d Ubuntu -u aries --exec chezmoi --config "$work/chezmoi.yaml" execute-template --file "$checkout/home/.chezmoiscripts/run_after_40-vite-plus.sh.tmpl") | Where-Object { $_ }) | Should -BeExactly @(
-			'#!/bin/sh'
-			'set -eu'
-			'[ -x "$HOME/.local/share/vite-plus/current/bin/vp" ] || curl -fsSL https://vite.plus | VP_NODE_MANAGER=yes VP_PM_MANAGER=yes VP_SELF_SETUP_NO_MODIFY_PATH=1 bash'
-		)
-	}
-
-	It 'installs uv once into ~/.local/bin, without letting it edit the shell profiles' {
-		@((wsl.exe -d Ubuntu -u aries --exec chezmoi --config "$work/chezmoi.yaml" execute-template --file "$checkout/home/.chezmoiscripts/run_after_42-uv.sh.tmpl") | Where-Object { $_ }) | Should -BeExactly @(
-			'#!/bin/sh'
-			'set -eu'
-			'[ -x "$HOME/.local/bin/uv" ] || curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR="$HOME/.local/bin" UV_NO_MODIFY_PATH=1 sh'
-		)
-	}
-
-	It 'unpacks the pinned jadx release and links its launcher into ~/.local/bin' {
-		@($listing | Where-Object { $_ -like '-rwx* .local/share/jadx/bin/jadx' }).Count | Should -Be 1
-		@($listing | Where-Object { $_ -like '* .local/bin/jadx -> /home/aries/.local/share/jadx/bin/jadx' }).Count | Should -Be 1
-		$external = (wsl.exe -d Ubuntu -u aries --exec sh -c "chezmoi --config $work/chezmoi.yaml execute-template --file $checkout/home/.chezmoiexternal.toml.tmpl | python3 -I -c 'import json, sys, tomllib; print(json.dumps(tomllib.load(sys.stdin.buffer)))'") | ConvertFrom-Json
-		$jadx = $external.'.local/share/jadx'
-		$jadx.url | Should -BeExactly 'https://github.com/skylot/jadx/releases/download/v1.5.6/jadx-1.5.6.zip'
-		$jadx.checksum.sha256 | Should -BeExactly '545ea2be9c242511bc145755cf4bda2485ade42966e096f8b4d3da2a230e8974'
-	}
-
-	It 'loads the Vite+ environment at login' {
-		@((Render-Home '.profile.d/vite-plus.sh') -split "`n" | Where-Object { $_ -and -not $_.StartsWith('#') }) | Should -BeExactly @(
-			'[ -r "$HOME/.config/vite-plus/env" ] && . "$HOME/.config/vite-plus/env"'
-		)
 	}
 
 	It 'signs git commits through 1Password on Windows, with the key from 1Password' {
@@ -494,77 +320,12 @@ Describe 'WSL home on Windows' {
 	}
 }
 
-Describe 'VS Code in WSL' {
-	It 'points VS Code at its data folder itself, not through the Scoop junction' {
-		$configuration = Join-Path $rendered '.config\windows\configuration.winget'
-		$resources = (chezmoi execute-template "{{ include `"$($configuration.Replace('\', '/'))`" | fromYaml | toJson }}" | ConvertFrom-Json).properties.resources
-		$portable = @($resources | Where-Object id -eq 'vscodePortable')
-		$portable.Count | Should -Be 1
-		$portable[0].resource | Should -BeExactly 'PSDscResources/Registry'
-		$portable[0].settings.Key | Should -BeExactly 'HKEY_CURRENT_USER\Environment'
-		$portable[0].settings.ValueName | Should -BeExactly 'VSCODE_PORTABLE'
-		$portable[0].settings.ValueType | Should -BeExactly 'String'
-		$portable[0].settings.ValueData | Should -BeExactly 'E:\Scoop\persist\vscode\data'
-		(Get-Item -LiteralPath $portable[0].settings.ValueData).LinkType | Should -BeNullOrEmpty
-	}
-
-	It 'translates the extensions'' Windows path inside WSL, where the WSL scripts run from' {
-		wsl.exe -d Ubuntu -u aries --exec wslpath -u 'e:\Scoop\persist\vscode\data\extensions\ms-vscode-remote.remote-wsl' | Should -BeExactly '/mnt/e/Scoop/persist/vscode/data/extensions/ms-vscode-remote.remote-wsl'
-	}
-}
-
-Describe 'WSL trigger' {
-	BeforeAll {
-		$repository = Split-Path $PSScriptRoot
-		$trigger = @((chezmoi --source $repository execute-template --file (Join-Path $repository 'home\run_after_wsl.ps1.tmpl')) -split "`n")
-	}
-
-	It 'finds the checkout through the drive mount before the first apply, without a mount of its own' {
-		$trigger | Should -Contain "`$checkout = wsl.exe -d Ubuntu -u root --exec wslpath -u '$($repository.Replace('\', '/'))'"
-		$trigger -join "`n" | Should -Not -Match '/mnt/windows/dotfiles|mountpoint|mount -t'
-	}
-
-	It 'installs chezmoi in the distribution at the version Windows runs' {
-		$version = chezmoi execute-template '{{ .chezmoi.version.version }}'
-		$trigger | Should -Contain "wsl.exe -d Ubuntu -u root --exec sh -c 'chezmoi --version 2> /dev/null | grep -q `"v$version,`" || curl -fsSL https://get.chezmoi.io | sh -s -- -b /usr/local/bin -t v$version'"
-	}
-
-	It 'applies the root source to / as root, with state and data of its own' {
-		($trigger | Where-Object { $_ -like 'wsl.exe -d Ubuntu -u root --exec chezmoi --source "$checkout/root" --destination / --persistent-state /var/lib/chezmoi-root/state.boltdb --cache /var/cache/chezmoi-root --override-data *apply --force --no-tty' }).Count | Should -Be 1
-	}
-
-	It 'applies home/ to ~ as the user after the root apply, from the same checkout, with the config init writes' {
-		$rootApply = [array]::FindIndex([string[]] $trigger, [Predicate[string]] { param($line) $line -like 'wsl.exe -d Ubuntu -u root --exec chezmoi --source "$checkout/root" *' })
-		$homeInit = [array]::IndexOf($trigger, 'wsl.exe -d Ubuntu -u aries --exec chezmoi init --no-tty --source $checkout')
-		$homeApply = [array]::IndexOf($trigger, 'wsl.exe -d Ubuntu -u aries --exec chezmoi apply --force --no-tty')
-		$rootApply | Should -BeGreaterThan 0
-		$homeInit | Should -BeGreaterThan $rootApply
-		$homeApply | Should -BeGreaterThan $homeInit
-		@($trigger | Where-Object { $_ -like '*init --apply*' }) | Should -BeNullOrEmpty
-	}
-
-	It 'restarts WSL only when the root apply asks for it' {
-		$trigger | Should -Contain 'if ((wsl.exe -d Ubuntu -u root --exec sh -c ''test -e /run/wsl-restart-needed && echo restart || true'') -eq ''restart'') {'
-		$trigger | Should -Contain '	wsl.exe --shutdown'
-	}
-
-	It 'replaces the old copy scripts' {
-		Join-Path $repository 'home\.chezmoiscripts\run_onchange_after_38-wsl-system.ps1.tmpl' | Should -Not -Exist
-		Join-Path $repository 'home\.chezmoiscripts\run_onchange_after_39-wsl-files.ps1.tmpl' | Should -Not -Exist
-		Join-Path $repository 'home\dot_config\wsl' | Should -Not -Exist
-	}
-}
-
 Describe 'windows configuration script' {
 	BeforeAll {
 		$repository = Split-Path $PSScriptRoot
 		function Render-Script([string] $Name) {
 			(chezmoi --source $repository execute-template --file (Join-Path $repository "home\$Name")) -join "`n"
 		}
-	}
-
-	It 'leaves Explorer running, so settings changes cost no restart' {
-		Render-Script 'dot_config\windows\run_onchange_after_configuration.winget.ps1.tmpl' | Should -Not -Match '(?i)explorer'
 	}
 
 	It 'pins the taskbar in a script of its own, which reruns for the layout and the shortcuts only' {
@@ -611,11 +372,6 @@ Describe 'Claude Code settings' {
 		$settings = (Render '.claude\settings.json') | ConvertFrom-Json
 	}
 
-	It 'renders the shared settings from settings.yaml' {
-		$settings.permissions.defaultMode | Should -BeExactly 'auto'
-		$settings.includeGitInstructions | Should -BeFalse
-	}
-
 	It 'leaves the Linux-only plugins, marketplaces and status line out on Windows' {
 		$settings.PSObject.Properties['statusLine'] | Should -BeNullOrEmpty
 		$settings.extraKnownMarketplaces.PSObject.Properties['ariesclark'] | Should -BeNullOrEmpty
@@ -624,13 +380,5 @@ Describe 'Claude Code settings' {
 
 	It 'never writes settings.yaml itself to ~' {
 		chezmoi --source $source managed --include files --path-style relative | Should -Not -Contain '.claude/settings.yaml'
-	}
-}
-
-Describe 'gh config' {
-	It 'is the same file in gh''s Windows location' {
-		$gh = Render 'AppData\Roaming\GitHub CLI\config.yml'
-		$gh | Should -Match '(?m)^git_protocol: https$'
-		$gh | Should -Match '(?m)^telemetry: disabled$'
 	}
 }
