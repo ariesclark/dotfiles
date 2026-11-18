@@ -26,6 +26,8 @@ system:
     packages:
       - git
       - jq
+      - bats
+      - shfmt
       - unzip
       - rustup
       - build-essential
