@@ -42,6 +42,7 @@ system:
       - rootlesskit
       - slirp4netns
       - acl
+      - earlyoom
 
   install:
     scoop: 'E:\Scoop'

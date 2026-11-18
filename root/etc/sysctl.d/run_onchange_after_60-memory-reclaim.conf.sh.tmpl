@@ -1,0 +1,4 @@
+#!/bin/sh
+# {{ includeTemplate "adjacent-hash" . }}
+set -eu
+sysctl --load /etc/sysctl.d/60-memory-reclaim.conf

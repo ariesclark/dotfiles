@@ -1,0 +1,16 @@
+{{ includeTemplate "generated" . -}}
+[Unit]
+Description=Compressed swap in memory on /dev/zram0
+Documentation=https://docs.kernel.org/admin-guide/blockdev/zram.html
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/sbin/zramctl --size 4G /dev/zram0
+ExecStart=/usr/sbin/mkswap /dev/zram0
+ExecStart=/usr/sbin/swapon --priority 100 /dev/zram0
+ExecStop=/usr/sbin/swapoff /dev/zram0
+ExecStop=/usr/sbin/zramctl --reset /dev/zram0
+
+[Install]
+WantedBy=multi-user.target

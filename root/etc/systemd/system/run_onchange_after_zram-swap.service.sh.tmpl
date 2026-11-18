@@ -1,0 +1,5 @@
+#!/bin/sh
+# {{ includeTemplate "adjacent-hash" . }}
+set -eu
+systemctl daemon-reload
+systemctl restart zram-swap

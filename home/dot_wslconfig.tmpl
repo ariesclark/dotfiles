@@ -1,7 +1,9 @@
 {{ includeTemplate "generated" . }}
 [wsl2]
+memory=12GB
+swap=4GB
 swapFile=E:\\WSL\\swap.vhdx
+loadKernelModules=zram
 
 [experimental]
-autoMemoryReclaim=gradual
 sparseVhd=true
