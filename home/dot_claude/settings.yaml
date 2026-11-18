@@ -117,7 +117,6 @@ linux:
   enabledPlugins:
     github@ariesclark: true
     guardrails@ariesclark: true
-    kagi@kagi-cli: true
     papercuts@ariesclark: true
     prior-art@ariesclark: true
     why@ariesclark: true
@@ -128,7 +127,3 @@ linux:
         source: directory
         path: repos/ariesclark/skills
       autoUpdate: true
-    kagi-cli:
-      source:
-        source: directory
-        path: repos/microck/kagi-cli
