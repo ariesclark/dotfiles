@@ -233,11 +233,11 @@ Describe 'WSL memory limits' {
 		}
 	}
 
-	It 'gives the VM and its swap a percent of the Windows memory, in MB' {
-		Render-WslConfig '37.5%' '25%' | Should -BeExactly @(
+	It 'gives the VM and its swap a percent of the Windows memory, rounded down to whole GB' {
+		Render-WslConfig '40%' '25%' | Should -BeExactly @(
 			'[wsl2]'
-			"memory=$([math]::Floor($memoryMB * 0.375))MB"
-			"swap=$([math]::Floor($memoryMB * 0.25))MB"
+			"memory=$([math]::Floor($memoryMB * 0.4 / 1024))GB"
+			"swap=$([math]::Floor($memoryMB * 0.25 / 1024))GB"
 			'swapFile=E:\\WSL\\swap.vhdx'
 			'loadKernelModules=zram'
 			'[experimental]'
@@ -251,6 +251,10 @@ Describe 'WSL memory limits' {
 
 	It 'leaves the memory and the swap to WSL for auto' {
 		Render-WslConfig 'auto' 'auto' | Should -BeExactly @('[wsl2]', 'swapFile=E:\\WSL\\swap.vhdx', 'loadKernelModules=zram', '[experimental]', 'sparseVhd=true')
+	}
+
+	It 'refuses a percent that comes to less than 1 GB' {
+		(Render-WslConfig '1%' '4GB') -join "`n" | Should -Match "The memory value '1%' comes to less than 1GB"
 	}
 
 	It 'refuses a WSL memory value it can''t read' {
