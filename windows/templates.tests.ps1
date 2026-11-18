@@ -89,7 +89,7 @@ Describe 'generated label' {
 			default { $label | ForEach-Object { "# $_" } }
 		}
 		$lines = @((Render $Target.Substring($HOME.Length + 1)) -split "`n")
-		$first = if ($lines[0] -match '^(#!|<\?xml |Windows Registry Editor )') { 1 } else { 0 }
+		$first = if ($lines[0] -eq '---') { [array]::IndexOf($lines, '---', 1) + 1 } elseif ($lines[0] -match '^(#!|<\?xml |Windows Registry Editor )') { 1 } else { 0 }
 		$lines[$first..($first + $expected.Count - 1)] | Should -BeExactly $expected
 	}
 
