@@ -1,0 +1,11 @@
+{{- $key := index . 0 -}}
+{{- $value := index . 1 | toString -}}
+{{- if eq $value "auto" -}}
+{{- else if regexMatch `^[0-9]+GB$` $value -}}
+{{ $key }}={{ $value }}
+{{- else if regexMatch `^[0-9]+(\.[0-9]+)?%$` $value -}}
+{{- $memoryBytes := output "powershell.exe" "-NoProfile" "-Command" "(Get-CimInstance Win32_PhysicalMemory | Measure-Object -Property Capacity -Sum).Sum" | trim | float64 -}}
+{{ $key }}={{ divf (mulf $memoryBytes (trimSuffix "%" $value | float64)) 104857600 | floor | int64 }}MB
+{{- else -}}
+{{ fail (printf "Can't read the memory value '%s'; use a size like 12GB, a percent like 40%%, or auto." $value) }}
+{{- end -}}

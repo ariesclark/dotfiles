@@ -1,7 +1,9 @@
 {{ includeTemplate "generated" . }}
 [wsl2]
-memory=12GB
-swap=4GB
+{{ with includeTemplate "wslconfig-memory" (list "memory" .system.wsl.memory) }}{{ . }}
+{{ end -}}
+{{ with includeTemplate "wslconfig-memory" (list "swap" .system.wsl.swap) }}{{ . }}
+{{ end -}}
 swapFile=E:\\WSL\\swap.vhdx
 loadKernelModules=zram
 

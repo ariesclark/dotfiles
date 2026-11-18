@@ -1,0 +1,13 @@
+{{- $key := index . 0 -}}
+{{- $value := index . 1 | toString -}}
+{{- $swap := eq $key "MemorySwapMax" -}}
+{{- if eq $value "auto" -}}
+{{- else if regexMatch `^[0-9]+GB$` $value -}}
+{{ $key }}={{ trimSuffix "B" $value }}
+{{- else if and (not $swap) (regexMatch `^[0-9]+(\.[0-9]{1,2})?%$` $value) -}}
+{{ $key }}={{ $value }}
+{{- else if $swap -}}
+{{ fail (printf "Can't read the swap value '%s'; use a size like 2GB, or auto." $value) }}
+{{- else -}}
+{{ fail (printf "Can't read the memory value '%s'; use a size like 8GB, a percent like 50%%, or auto." $value) }}
+{{- end -}}

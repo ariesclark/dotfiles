@@ -15,6 +15,14 @@ system:
     distribution: Ubuntu
     user: aries
     drive: w
+    memory: 37.5%
+    swap: 4GB
+    docker:
+      memory: 66.67%
+      swap: 2GB
+      container:
+        memory: 33.33%
+        swap: 1GB
     packages:
       - git
       - jq

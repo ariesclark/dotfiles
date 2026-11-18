@@ -1,4 +1,6 @@
 {{ includeTemplate "generated" . -}}
 [Slice]
-MemoryMax=8G
-MemorySwapMax=2G
+{{ with includeTemplate "systemd-memory" (list "MemoryMax" .wsl.docker.memory) }}{{ . }}
+{{ end -}}
+{{ with includeTemplate "systemd-memory" (list "MemorySwapMax" .wsl.docker.swap) }}{{ . }}
+{{ end -}}

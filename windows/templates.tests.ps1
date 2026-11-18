@@ -212,6 +212,72 @@ Describe 'WSL root source' {
 	}
 }
 
+Describe 'WSL memory limits' {
+	BeforeAll {
+		$repository = Split-Path $PSScriptRoot
+		$rootSource = Join-Path $repository 'root'
+		$memoryMB = [math]::Floor((Get-CimInstance Win32_PhysicalMemory | Measure-Object -Property Capacity -Sum).Sum / 1MB)
+		function Get-Setting([string[]] $Lines) {
+			@($Lines | Where-Object { $_ -and -not $_.StartsWith('#') })
+		}
+		function Render-WslConfig([string] $Memory, [string] $Swap) {
+			$data = @{ system = @{ wsl = @{ memory = $Memory; swap = $Swap } } } | ConvertTo-Json -Depth 5 -Compress
+			Get-Setting (chezmoi --source $repository --override-data $data execute-template --file (Join-Path $repository 'home\dot_wslconfig.tmpl') 2>&1 | ForEach-Object { "$_" })
+		}
+		function Render-DockerLimit([string] $DropIn, [hashtable] $Docker) {
+			$data = Join-Path $TestDrive 'memory-root-data.json'
+			$rootData = (chezmoi --source $repository execute-template '{{ includeTemplate "wsl-root-data" . }}') -join "`n" | ConvertFrom-Json -AsHashtable
+			$rootData.wsl.docker = $Docker
+			$rootData | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $data
+			Get-Setting (chezmoi --source $rootSource --override-data-file $data execute-template --file (Join-Path $rootSource "var\lib\dockerd\dot_config\systemd\user\$DropIn\memory.conf.tmpl") 2>&1 | ForEach-Object { "$_" })
+		}
+	}
+
+	It 'gives the VM and its swap a percent of the Windows memory, in MB' {
+		Render-WslConfig '37.5%' '25%' | Should -BeExactly @(
+			'[wsl2]'
+			"memory=$([math]::Floor($memoryMB * 0.375))MB"
+			"swap=$([math]::Floor($memoryMB * 0.25))MB"
+			'swapFile=E:\\WSL\\swap.vhdx'
+			'loadKernelModules=zram'
+			'[experimental]'
+			'sparseVhd=true'
+		)
+	}
+
+	It 'takes a size in GB as given' {
+		Render-WslConfig '12GB' '4GB' | Select-Object -Index 1, 2 | Should -BeExactly @('memory=12GB', 'swap=4GB')
+	}
+
+	It 'leaves the memory and the swap to WSL for auto' {
+		Render-WslConfig 'auto' 'auto' | Should -BeExactly @('[wsl2]', 'swapFile=E:\\WSL\\swap.vhdx', 'loadKernelModules=zram', '[experimental]', 'sparseVhd=true')
+	}
+
+	It 'refuses a WSL memory value it can''t read' {
+		(Render-WslConfig 'huge' '4GB') -join "`n" | Should -Match "Can't read the memory value 'huge'"
+	}
+
+	It 'passes a memory percent to systemd, which takes it of the VM memory' {
+		Render-DockerLimit 'user.slice.d' @{ memory = '66.67%'; swap = '2GB'; container = @{ memory = 'auto'; swap = 'auto' } } | Should -BeExactly @('[Slice]', 'MemoryMax=66.67%', 'MemorySwapMax=2G')
+	}
+
+	It 'refuses a swap percent, which systemd 259 takes of the memory instead of the swap' {
+		(Render-DockerLimit 'user.slice.d' @{ memory = 'auto'; swap = '25%'; container = @{ memory = 'auto'; swap = 'auto' } }) -join "`n" | Should -Match "Can't read the swap value '25%'; use a size like 2GB, or auto\."
+	}
+
+	It 'gives each container a size in systemd''s units' {
+		Render-DockerLimit 'docker-.scope.d' @{ memory = 'auto'; swap = 'auto'; container = @{ memory = '4GB'; swap = '1GB' } } | Should -BeExactly @('[Scope]', 'MemoryMax=4G', 'MemorySwapMax=1G')
+	}
+
+	It 'sets no container limit for auto' {
+		Render-DockerLimit 'docker-.scope.d' @{ memory = '8GB'; swap = '2GB'; container = @{ memory = 'auto'; swap = 'auto' } } | Should -BeExactly @('[Scope]')
+	}
+
+	It 'refuses a container memory value it can''t read' {
+		(Render-DockerLimit 'user.slice.d' @{ memory = 'lots'; swap = 'auto'; container = @{ memory = 'auto'; swap = 'auto' } }) -join "`n" | Should -Match "Can't read the memory value 'lots'"
+	}
+}
+
 Describe 'WSL home' {
 	BeforeAll {
 		$work = "/tmp/chezmoi-home-test-$PID"
