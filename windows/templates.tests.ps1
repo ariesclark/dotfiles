@@ -273,6 +273,18 @@ Describe 'WSL memory limits' {
 		Render-DockerLimit 'docker-.scope.d' @{ memory = 'auto'; swap = 'auto'; container = @{ memory = '4GB'; swap = '1GB' } } | Should -BeExactly @('[Scope]', 'MemoryMax=4G', 'MemorySwapMax=1G')
 	}
 
+	It 'takes a container percent of the percent for all containers' {
+		Render-DockerLimit 'docker-.scope.d' @{ memory = '50%'; swap = 'auto'; container = @{ memory = '25%'; swap = '1GB' } } | Should -BeExactly @('[Scope]', 'MemoryMax=12.5%', 'MemorySwapMax=1G')
+	}
+
+	It 'takes a container percent of the size for all containers' {
+		Render-DockerLimit 'docker-.scope.d' @{ memory = '8GB'; swap = 'auto'; container = @{ memory = '25%'; swap = 'auto' } } | Should -BeExactly @('[Scope]', 'MemoryMax=2048M')
+	}
+
+	It 'takes a container percent of the VM memory when all containers have no limit' {
+		Render-DockerLimit 'docker-.scope.d' @{ memory = 'auto'; swap = 'auto'; container = @{ memory = '25%'; swap = 'auto' } } | Should -BeExactly @('[Scope]', 'MemoryMax=25%')
+	}
+
 	It 'sets no container limit for auto' {
 		Render-DockerLimit 'docker-.scope.d' @{ memory = '8GB'; swap = '2GB'; container = @{ memory = 'auto'; swap = 'auto' } } | Should -BeExactly @('[Scope]')
 	}

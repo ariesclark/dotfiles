@@ -1,11 +1,23 @@
 {{- $key := index . 0 -}}
 {{- $value := index . 1 | toString -}}
+{{- $parent := "auto" -}}
+{{- if gt (len .) 2 }}{{ $parent = index . 2 | toString }}{{ end -}}
 {{- $swap := eq $key "MemorySwapMax" -}}
+{{- $percent := `^[0-9]+(\.[0-9]{1,2})?%$` -}}
 {{- if eq $value "auto" -}}
 {{- else if regexMatch `^[0-9]+GB$` $value -}}
 {{ $key }}={{ trimSuffix "B" $value }}
-{{- else if and (not $swap) (regexMatch `^[0-9]+(\.[0-9]{1,2})?%$` $value) -}}
+{{- else if and (not $swap) (regexMatch $percent $value) -}}
+{{- $share := trimSuffix "%" $value | float64 -}}
+{{- if eq $parent "auto" -}}
 {{ $key }}={{ $value }}
+{{- else if regexMatch `^[0-9]+GB$` $parent -}}
+{{ $key }}={{ divf (mulf (trimSuffix "GB" $parent | float64) 1024 $share) 100 | floor | int64 }}M
+{{- else if regexMatch $percent $parent -}}
+{{ $key }}={{ round (divf (mulf (trimSuffix "%" $parent | float64) $share) 100) 2 }}%
+{{- else -}}
+{{ fail (printf "Can't read the memory value '%s'; use a size like 8GB, a percent like 50%%, or auto." $parent) }}
+{{- end -}}
 {{- else if $swap -}}
 {{ fail (printf "Can't read the swap value '%s'; use a size like 2GB, or auto." $value) }}
 {{- else -}}

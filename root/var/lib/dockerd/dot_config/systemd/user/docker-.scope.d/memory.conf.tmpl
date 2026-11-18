@@ -1,6 +1,6 @@
 {{ includeTemplate "generated" . -}}
 [Scope]
-{{ with includeTemplate "systemd-memory" (list "MemoryMax" .wsl.docker.container.memory) }}{{ . }}
+{{ with includeTemplate "systemd-memory" (list "MemoryMax" .wsl.docker.container.memory .wsl.docker.memory) }}{{ . }}
 {{ end -}}
 {{ with includeTemplate "systemd-memory" (list "MemorySwapMax" .wsl.docker.container.swap) }}{{ . }}
 {{ end -}}
