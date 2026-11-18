@@ -36,7 +36,7 @@ This repository contains the configuration of a Windows computer and of its WSL 
   - [`dot_config/windows/`](home/dot_config/windows): the Windows settings.
     - [`readonly_configuration.winget.tmpl`](home/dot_config/windows/readonly_configuration.winget.tmpl): a [WinGet configuration](https://learn.microsoft.com/en-us/windows/package-manager/configuration/) file. It sets the taskbar, the Chromium and Firefox policies, the environment variables, the startup entries to keep off and the [taskbar pin policy](https://learn.microsoft.com/en-us/windows/configuration/taskbar/pinned-apps).
     - [`readonly_taskbar.xml.tmpl`](home/dot_config/windows/readonly_taskbar.xml.tmpl): the taskbar pins, in order.
-- [`root/`](root): a second chezmoi source for `/` in the WSL distribution. Root applies it inside the distribution, from this checkout. The Windows apply starts it. It sets `wsl.conf`, the apt packages, GitHub's apt repository for `gh`, the [Git PPA](https://launchpad.net/~git-core/+archive/ubuntu/ppa) for a newer `git`, rootless Docker for the `dockerd` user, and `/tmp` on disk instead of in memory. A script `run_onchange_after_<file>.sh.tmpl` runs again when the file `<file>` next to it changes.
+- [`root/`](root): a second chezmoi source for `/` in the WSL distribution. Root applies it inside the distribution, from this checkout. The Windows apply starts it. It sets `wsl.conf`, the apt packages, GitHub's apt repository for `gh`, the [Git PPA](https://launchpad.net/~git-core/+archive/ubuntu/ppa) for a newer `git`, rootless Docker for the `dockerd` user, `/tmp` on disk instead of in memory, and ports from 80 open to unprivileged processes. A script `run_onchange_after_<file>.sh.tmpl` runs again when the file `<file>` next to it changes.
 - [`windows/`](windows): the PowerShell modules for the scripts, and their [Pester](https://pester.dev/) tests.
 - [`docs/goals.md`](docs/goals.md): the planned work.
 
@@ -57,8 +57,8 @@ One `chezmoi apply` on Windows does these steps, in this order:
 The apply of `root/` does these steps, in this order:
 
 1. The scripts before the files: the apt packages, and the `dockerd` user with its group, lingering and access to `~/repos`.
-2. The files go into `/`: `wsl.conf`, the apt sources for `gh` and `git`, and the service and socket of `dockerd`.
-3. The scripts after the files, each one only when its file changed: install `gh`, install `git` from the PPA, ask Windows to stop WSL, start the Docker service of `dockerd` again.
+2. The files go into `/`: `wsl.conf`, the apt sources for `gh` and `git`, the service and socket of `dockerd`, and the sysctl setting for unprivileged ports.
+3. The scripts after the files, each one only when its file changed: install `gh`, install `git` from the PPA, ask Windows to stop WSL, start the Docker service of `dockerd` again, load the sysctl setting.
 
 In the distribution, WSL mounts the Windows drives at `/mnt/<letter>` and appends the Windows `PATH`, so `xdg-open` opens links in the Windows default browser, and the Windows tools run by name: `ssh.exe`, `op.exe`, `op-ssh-sign-wsl.exe`, `code`. In an interactive bash, a name that is not found runs as the Windows tool `<name>.exe` when there is one, so `op` runs `op.exe`. Otherwise Ubuntu's command-not-found answers. `playwright-cli` drives Playwright's own Chromium, headless, inside the distribution. After the home apply, the Windows apply runs Playwright's installer as root, which installs that Chromium in `/opt/ms-playwright` and the Linux packages it needs. The user `dockerd` runs Docker without root. `aries` uses it through the socket `/run/dockerd/docker.sock`. Containers can use `~/repos`, but not the other files in `~`.
 
