@@ -1,4 +1,3 @@
-{{ if eq .chezmoi.os "windows" -}}
 # reruns when windows/ changes: {{ template "glob-hash" (joinPath .chezmoi.workingTree "windows" "*.psm1") }}
 $ErrorActionPreference = 'Stop'
 Import-Module '{{ joinPath .chezmoi.workingTree "windows" "packages.psm1" }}' -Force
@@ -15,4 +14,3 @@ $install = @'
 {{ .system.install | toJson }}
 '@ | ConvertFrom-Json
 Sync-Package -Groups $groups -Apps $apps -Selected $selected -Install $install
-{{ end -}}

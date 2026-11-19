@@ -1,10 +1,9 @@
-{{ if eq .chezmoi.os "windows" -}}
 {{- $wsl := printf "wsl.exe -d %s -u root --exec" .system.wsl.distribution -}}
 {{- $version := .chezmoi.version.version -}}
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $true
 $checkout = {{ $wsl }} wslpath -u '{{ .chezmoi.workingTree }}'
-{{ $wsl }} sh -c 'chezmoi --version 2> /dev/null | grep -q "v{{ $version }}," || curl -fsSL https://get.chezmoi.io | sh -s -- -b /usr/local/bin -t v{{ $version }}'
+{{ $wsl }} sh -c 'chezmoi --version 2> /dev/null | grep -q "v{{ $version }}," || curl -fsSL https://raw.githubusercontent.com/ariesclark/cheznous/v{{ $version }}/assets/scripts/install.sh | sh -s -- -b /usr/local/bin -t v{{ $version }}'
 {{ $wsl }} chezmoi --source "$checkout/root" --destination / --persistent-state /var/lib/chezmoi-root/state.boltdb --cache /var/cache/chezmoi-root --override-data '{{ includeTemplate "wsl-root-data" . }}' apply --force --no-tty
 wsl.exe -d {{ .system.wsl.distribution }} -u {{ .system.wsl.user }} --exec chezmoi init --no-tty --source $checkout
 wsl.exe -d {{ .system.wsl.distribution }} -u {{ .system.wsl.user }} --exec chezmoi apply --force --no-tty
@@ -12,4 +11,3 @@ wsl.exe -d {{ .system.wsl.distribution }} -u {{ .system.wsl.user }} --exec chezm
 if (({{ $wsl }} sh -c 'test -e /run/wsl-restart-needed && echo restart || true') -eq 'restart') {
 	wsl.exe --shutdown
 }
-{{ end -}}

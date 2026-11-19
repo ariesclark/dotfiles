@@ -1,4 +1,3 @@
-{{ if eq .chezmoi.os "windows" -}}
 $ErrorActionPreference = 'Stop'
 Import-Module '{{ joinPath .chezmoi.workingTree "windows" "readonly.psm1" }}' -Force
 $state = Join-Path $env:TEMP "chezmoi-readonly-$PID.boltdb"
@@ -9,4 +8,3 @@ try {
 finally {
 	Remove-Item -LiteralPath $state -Force -ErrorAction SilentlyContinue
 }
-{{ end -}}

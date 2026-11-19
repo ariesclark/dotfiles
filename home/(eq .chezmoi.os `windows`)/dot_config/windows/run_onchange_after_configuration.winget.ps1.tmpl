@@ -1,4 +1,3 @@
-{{ if eq .chezmoi.os "windows" -}}
 # {{ includeTemplate "adjacent-hash" . }}
 $ErrorActionPreference = 'Stop'
 $modules = '{{ .system.install.configurationModules }}'
@@ -21,4 +20,3 @@ winget configure --file '{{ joinPath .chezmoi.homeDir ".config" "windows" "confi
 if ($LASTEXITCODE) {
 	throw 'winget configure failed.'
 }
-{{ end -}}

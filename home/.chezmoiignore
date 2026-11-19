@@ -1,21 +1,5 @@
+{{- $version := .chezmoi.version.version }}
+{{- if or (not $version) (not (hasPrefix "cheznous." (semver $version).Prerelease)) }}
+{{-   fail (printf "this source directory needs cheznous for its group directories, but this is chezmoi %q: install cheznous from https://github.com/ariesclark/cheznous" $version) }}
+{{- end }}
 .claude/settings.yaml
-{{- if ne .chezmoi.os "windows" }}
-AppData
-Documents
-{{- end }}
-{{- if eq .chezmoi.os "windows" }}
-.bashrc
-.local/bin
-.profile
-.profile.d
-.claude/statusline.sh
-.config/gh
-.config/pnpm
-{{-   if not (stat (joinPath .chezmoi.homeDir "AppData/Local/Discord/Update.exe")) }}
-AppData/Roaming/discord
-{{-   end }}
-{{- end }}
-{{- if ne .chezmoi.os "windows" }}
-.config/windows
-.wslconfig
-{{- end }}

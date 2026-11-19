@@ -82,7 +82,7 @@ Describe 'generated label' {
 	}
 
 	It 'opens <Leaf> with the source file to change instead, in its own comment syntax' -ForEach @($targets | Where-Object { $_.Target -notlike '*.json' }) {
-		$sourceFile = if ($Target -like '*\GitHub CLI\config.yml') { Join-Path $repository 'home\dot_config\gh\config.yml.tmpl' } else { [System.IO.Path]::GetFullPath((chezmoi --source $repository source-path $Target)) }
+		$sourceFile = if ($Target -like '*\GitHub CLI\config.yml') { Join-Path $repository 'home\(eq .chezmoi.os `linux`)\dot_config\gh\config.yml.tmpl' } else { [System.IO.Path]::GetFullPath((chezmoi --source $repository source-path $Target)) }
 		$label = 'This file is managed by Chezmoi. To change it, update:', $sourceFile
 		$expected = switch -Wildcard ($Target) {
 			'*.reg' { $label | ForEach-Object { "; $_" } }
@@ -224,7 +224,7 @@ Describe 'WSL memory limits' {
 		}
 		function Render-WslConfig([string] $Memory, [string] $Swap) {
 			$data = @{ system = @{ wsl = @{ memory = $Memory; swap = $Swap } } } | ConvertTo-Json -Depth 5 -Compress
-			Get-Setting (chezmoi --source $repository --override-data $data execute-template --file (Join-Path $repository 'home\dot_wslconfig.tmpl') 2>&1 | ForEach-Object { "$_" })
+			Get-Setting (chezmoi --source $repository --override-data $data execute-template --file (Join-Path $repository 'home\(eq .chezmoi.os `windows`)\dot_wslconfig.tmpl') 2>&1 | ForEach-Object { "$_" })
 		}
 		function Render-DockerLimit([string] $DropIn, [hashtable] $Docker) {
 			$data = Join-Path $TestDrive 'memory-root-data.json'
@@ -396,7 +396,9 @@ Describe 'WSL home on Windows' {
 	}
 
 	It 'leaves the Vite+ install out on Windows' {
-		chezmoi --source (Split-Path $PSScriptRoot) execute-template --file (Join-Path (Split-Path $PSScriptRoot) 'home\.chezmoiscripts\run_after_40-vite-plus.sh.tmpl') | Should -BeNullOrEmpty
+		$scripts = @(chezmoi --source (Split-Path $PSScriptRoot) managed --include scripts --path-style relative)
+		$scripts | Should -Not -Contain '.chezmoiscripts/40-vite-plus.sh'
+		$scripts | Should -Contain '.chezmoiscripts/20-packages.ps1'
 	}
 
 	It 'keeps 1Password''s default command on Windows' {
@@ -413,7 +415,7 @@ Describe 'windows configuration script' {
 	}
 
 	It 'pins the taskbar in a script of its own, which reruns for the layout and the shortcuts only' {
-		$script = Render-Script 'dot_config\windows\run_onchange_after_taskbar.xml.ps1.tmpl'
+		$script = Render-Script '(eq .chezmoi.os `windows`)\dot_config\windows\run_onchange_after_taskbar.xml.ps1.tmpl'
 		$script | Should -Match '(?m)^Restart-Explorer$'
 		$script | Should -Not -Match '(?i)winget configure'
 	}

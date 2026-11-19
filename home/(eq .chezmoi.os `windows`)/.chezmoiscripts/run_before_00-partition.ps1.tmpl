@@ -1,4 +1,3 @@
-{{ if eq .chezmoi.os "windows" -}}
 $ErrorActionPreference = 'Stop'
 Import-Module '{{ joinPath .chezmoi.workingTree "windows" "volumes.psm1" }}' -Force
 $volumes = @'
@@ -6,4 +5,3 @@ $volumes = @'
 '@ | ConvertFrom-Json
 $layout = ConvertTo-Layout -Volumes $volumes -SystemLetter $env:SystemDrive
 Sync-Partition -Layout $layout -OptedIn ${{ .machine.partition }}
-{{ end -}}

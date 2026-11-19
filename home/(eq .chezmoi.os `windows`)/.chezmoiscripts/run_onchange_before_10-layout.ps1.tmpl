@@ -1,4 +1,3 @@
-{{ if eq .chezmoi.os "windows" -}}
 # reruns when windows/ changes: {{ template "glob-hash" (joinPath .chezmoi.workingTree "windows" "*.psm1") }}
 $ErrorActionPreference = 'Stop'
 foreach ($module in 'volumes', 'pagefile', 'packages', 'scoop', 'mounts') {
@@ -26,4 +25,3 @@ Install-Scoop -Root $system.install.scoop
 $packages = Get-PackageSet -Groups $groups -Names (Resolve-Group -Groups $groups -Selected @($selected))
 $installed = @(foreach ($source in $packages.PSObject.Properties) { foreach ($id in $source.Value) { "$($source.Name):$id" } })
 Install-Mount -Mounts @(Get-AppMount -Apps $apps -Selected $installed)
-{{ end -}}

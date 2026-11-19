@@ -1,4 +1,3 @@
-{{ if eq .chezmoi.os "windows" -}}
 {{- $shortcuts := list -}}
 {{- range $name, $app := .apps -}}
 {{- if hasKey $app "shortcuts" -}}
@@ -37,4 +36,3 @@ Write-Layout $empty.OuterXml
 Restart-Explorer
 Write-Layout $declared
 Restart-Explorer
-{{ end -}}

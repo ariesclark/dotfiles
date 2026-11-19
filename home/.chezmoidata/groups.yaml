@@ -4,7 +4,6 @@ groups:
       - scoop:main/7zip
       - scoop:main/git
       - scoop:main/gh
-      - scoop:main/chezmoi
       - scoop:main/restic
       - scoop:main/jq
       - scoop:main/pwsh

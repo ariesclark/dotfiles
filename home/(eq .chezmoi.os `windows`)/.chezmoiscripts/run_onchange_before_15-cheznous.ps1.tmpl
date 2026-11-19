@@ -1,0 +1,18 @@
+{{- $tag := printf "v%s" .system.cheznous.version -}}
+$ErrorActionPreference = 'Stop'
+$PSNativeCommandUseErrorActionPreference = $true
+$directory = {{ joinPath .system.install.winget "cheznous" | squote }}
+New-Item -ItemType Directory -Force -Path $directory | Out-Null
+foreach ($name in 'cheznous.exe', 'chezmoi.exe') {
+	$path = Join-Path $directory $name
+	if (Test-Path -LiteralPath $path) {
+		Remove-Item -LiteralPath "$path.old" -Force -ErrorAction SilentlyContinue
+		Rename-Item -LiteralPath $path -NewName "$name.old"
+	}
+}
+$installer = Invoke-RestMethod {{ printf "https://raw.githubusercontent.com/ariesclark/cheznous/%s/assets/scripts/install.ps1" $tag | squote }}
+& ([scriptblock]::Create($installer)) -BinDir $directory -Tag {{ $tag | squote }}
+$userPath = [Environment]::GetEnvironmentVariable('Path', 'User') -split ';' | Where-Object { $_ }
+if ($userPath -notcontains $directory) {
+	[Environment]::SetEnvironmentVariable('Path', (@($userPath) + $directory) -join ';', 'User')
+}

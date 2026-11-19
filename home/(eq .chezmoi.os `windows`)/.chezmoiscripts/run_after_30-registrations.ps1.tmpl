@@ -1,4 +1,3 @@
-{{ if eq .chezmoi.os "windows" -}}
 $ErrorActionPreference = 'Stop'
 Import-Module '{{ joinPath .chezmoi.workingTree "windows" "registrations.psm1" }}' -Force
 $apps = @'
@@ -8,4 +7,3 @@ $install = @'
 {{ .system.install | toJson }}
 '@ | ConvertFrom-Json
 Sync-Registration -Apps $apps -Install $install
-{{ end -}}
