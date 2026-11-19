@@ -414,6 +414,15 @@ Describe 'windows configuration script' {
 		}
 	}
 
+	It 'runs <Name> with the chezmoi that applies it, which a first apply has not put on PATH yet' -ForEach @(
+		@{ Name = 'run_before_90-writable.ps1.tmpl' }
+		@{ Name = 'run_after_05-readonly.ps1.tmpl' }
+	) {
+		$executable = chezmoi --source $repository execute-template '{{ .chezmoi.executable }}'
+		$script = Render-Script ('(eq .chezmoi.os `windows`)\.chezmoiscripts\' + $Name)
+		$script | Should -Match ([regex]::Escape("{ param([string[]] `$Sources) & '$executable' --persistent-state `$state target-path @Sources }"))
+	}
+
 	It 'pins the taskbar in a script of its own, which reruns for the layout and the shortcuts only' {
 		$script = Render-Script '(eq .chezmoi.os `windows`)\dot_config\windows\run_onchange_after_taskbar.xml.ps1.tmpl'
 		$script | Should -Match '(?m)^Restart-Explorer$'
