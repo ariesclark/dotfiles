@@ -69,10 +69,11 @@ Commit messages follow Conventional Commits.
 - Imperative mood ("add", not "added"/"adds"), no trailing period, ≤72 characters.
 - Self-contained: it still names the change a year later, with no diff open.
 - Lowercase, except code identifiers (`AbortSignal`, `JSON.parse`) and explicitly cased terms (proper nouns, product names like `Sentry`, file paths).
-- Good: `feat: add retry with backoff to webhook delivery`, `refactor(parser): fold token lookahead into the scanner loop`
+- When the commit resolves an open issue or pull request, end the subject with `, closes #N`, one keyword per reference (`, closes #1, closes #2`). Put it on the commit that does the resolving, and leave it off anything that should stay open. Shorten the description to fit 72 characters; never drop the reference. It closes an issue once the commit reaches the default branch, but not a pull request ([GitHub](https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/linking-a-pull-request-to-an-issue)); close that by hand once the commit lands.
+- Good: `feat: add retry with backoff to webhook delivery`, `refactor(parser): fold token lookahead into the scanner loop`, `fix(frontend): update Uppy to v6, closes #424`
 - Bad: `fix: bug` (names nothing), `chore: fix login redirect` (that's a `fix`), `feat: changes from review` (the process, not the change)
 
-**Body.** Write none. Never write one to say what the change does, how it works, which files it touched, or that it is safe — the diff shows all of that. The one exception is a fact absent from the diff: a cause the code doesn't show, or a reference (Sentry trace, doc link, bug report, PR/issue, RFC).
+**Body.** Write none. Never write one to say what the change does, how it works, which files it touched, or that it is safe — the diff shows all of that. The one exception is a fact absent from the diff: a cause the code doesn't show, or a reference that closes nothing (Sentry trace, doc link, bug report, related PR or issue, RFC).
 
 **Signing.** A signing-agent error (`error: 1Password: agent returned an error`) usually means the user denied the approval prompt, not that the setup is broken. Say the commit needs their approval and wait for them to retry it. Never disable signing or pass `--no-gpg-sign`.
 
