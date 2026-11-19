@@ -51,12 +51,6 @@ apps:
         arguments: --user-data-dir="E:\Scoop\apps\chromium\current\User Data" --disable-features=SessionRestoreInfobar,EnableNtpBrowserPromos --no-default-browser-check
         appId: Chromium.H4FX3KY3YMMTY7OOGOGY2E.UserData.Default
 
-  scoop:versions/firefox-nightly:
-    shortcuts:
-      - name: Firefox Nightly
-        path: firefox.exe
-        appId: 7DB6B795FC84A795
-
   scoop:extras/windirstat:
     shortcuts:
       - name: WinDirStat
