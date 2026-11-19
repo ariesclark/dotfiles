@@ -1,9 +1,11 @@
 BeforeAll {
 	$source = Split-Path $PSScriptRoot
 	$mockSigningKey = 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMockSigningKeyFromTheOpStub'
+	$mockPushKey = 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMockPushKeyFromTheOpStub'
 	$mockEmail = 'stub@example.com'
 	$opStubSecrets = [ordered]@{
 		'op://personal/rczscaa2ex5o5gqxuoo5aa6xmu/public key' = $mockSigningKey
+		'op://personal/x5widjpc2mp6hr3xci4dkvbvz4/public key' = $mockPushKey
 		'op://personal/6enz7r76cvm7nq3gac2xckcxke/Identification/first name' = 'Stub'
 		'op://personal/6enz7r76cvm7nq3gac2xckcxke/Identification/last name' = 'Person'
 		'op://personal/6enz7r76cvm7nq3gac2xckcxke/Internet Details/email' = $mockEmail
@@ -446,6 +448,45 @@ Describe 'git' {
 
 	It 'leaves the WSL settings out on Windows' {
 		$config | Should -Not -Match 'op-ssh-sign-wsl'
+	}
+
+	It 'fetches from GitHub over HTTPS and pushes over SSH, so 1Password approves each push, from an <Form> remote' -ForEach @(
+		@{ Form = 'HTTPS'; Url = 'https://github.com/owner/repo.git' }
+		@{ Form = 'SSH'; Url = 'git@github.com:owner/repo.git' }
+	) {
+		$repository = Join-Path $TestDrive "remote-$Form"
+		git init --quiet $repository
+		git -C $repository remote add origin $Url
+		$env:GIT_CONFIG_GLOBAL = Join-Path $rendered '.config\git\config'
+		try {
+			git -C $repository remote get-url origin | Should -BeExactly 'https://github.com/owner/repo.git'
+			git -C $repository remote get-url --push origin | Should -BeExactly 'git@github.com:owner/repo.git'
+		} finally {
+			Remove-Item env:GIT_CONFIG_GLOBAL
+		}
+	}
+}
+
+Describe 'ssh' {
+	It 'trusts exactly the host keys GitHub publishes, by their documented fingerprints' {
+		ssh-keygen -l -f (Join-Path $rendered '.ssh\known_hosts.d\github.com') | Should -BeExactly @(
+			'256 SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU github.com (ED25519)'
+			'256 SHA256:p2QAMXNIC1TJYWeIOttrVc98/R1BUFWu3/LiyKgUfQM github.com (ECDSA)'
+			'3072 SHA256:uNiVztksCsDhcc0u9e8BujQXVUpKZIDTMczCvj3tD2s github.com (RSA)'
+		)
+	}
+
+	It 'checks github.com against those keys only, and offers it only the push key' {
+		(Render '.ssh\config') -split "`n" | Where-Object { $_ -notmatch '^#' } | Should -BeExactly @(
+			'Host github.com'
+			"`tUserKnownHostsFile ~/.ssh/known_hosts.d/github.com"
+			"`tIdentityFile ~/.ssh/github.com.pub"
+			"`tIdentitiesOnly yes"
+		)
+	}
+
+	It 'reads the push key from 1Password instead of keeping it in the repo' {
+		(Render '.ssh\github.com.pub') -split "`n" | Where-Object { $_ -notmatch '^#' } | Should -BeExactly $mockPushKey
 	}
 }
 

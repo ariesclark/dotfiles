@@ -19,6 +19,9 @@
 	autoStash = true
 [url "https://github.com/"]
 	insteadOf = git@github.com:
+[url "git@github.com:"]
+	pushInsteadOf = https://github.com/
+	pushInsteadOf = git@github.com:
 {{- $gitVersionParts := output "git" "--version" | trim | splitList " " | last | splitList "." }}
 {{- $gitVersion := slice $gitVersionParts 0 3 | join "." }}
 {{- if semverCompare "<2.54.0" $gitVersion }}
