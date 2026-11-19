@@ -57,12 +57,14 @@ groups:
       - steam:431960 # Wallpaper Engine
       - steam:1086940 # Baldur's Gate 3
       - steam:578080 # PUBG: Battlegrounds
+      - steam:438100 # VRChat
 
   dev:
     needs:
       - base
     apps:
       - scoop:extras/vscode
+      - scoop:nerd-fonts/monaspace
       - scoop:versions/firefox-developer
       - scoop:versions/firefox-nightly
       - scoop:main/uv

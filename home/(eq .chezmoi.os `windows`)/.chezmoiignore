@@ -1,3 +1,6 @@
 {{- if not (stat (joinPath .chezmoi.homeDir "AppData/Local/Discord/Update.exe")) }}
 AppData/Roaming/discord
 {{- end }}
+{{- if not (stat "E:/Games/Steam/common/VRChat/VRChat.exe") }}
+AppData/LocalLow/VRChat
+{{- end }}

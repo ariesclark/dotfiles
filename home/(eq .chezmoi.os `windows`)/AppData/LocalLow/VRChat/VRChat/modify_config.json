@@ -1,0 +1,3 @@
+{{- /* chezmoi:modify-template */ -}}
+{{- /* https://docs.vrchat.com/docs/configuration-file */ -}}
+{{- includeTemplate "merge-json" (dict "current" .chezmoi.stdin "values" (dict "cache_directory" "E:/Cache/VRChat")) }}
