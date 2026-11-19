@@ -385,6 +385,24 @@ Describe 'WSL home' {
 	}
 }
 
+Describe 'zram swap' {
+	BeforeAll {
+		$rootSource = Join-Path (Split-Path $PSScriptRoot) 'root'
+		$unit = @(chezmoi --source $rootSource execute-template --file (Join-Path $rootSource 'etc\systemd\system\zram-swap.service.tmpl') | Where-Object { $_ -match '^Exec' })
+	}
+
+	It 'creates /dev/zram0 again when a restart has reset it away, then sizes it at 8 GB' {
+		$unit | Should -BeExactly @(
+			"ExecStartPre=/bin/sh -c 'test -e /dev/zram0 || cat /sys/class/zram-control/hot_add'"
+			'ExecStart=/usr/sbin/zramctl --size 8G /dev/zram0'
+			'ExecStart=/usr/sbin/mkswap /dev/zram0'
+			'ExecStart=/usr/sbin/swapon --priority 100 /dev/zram0'
+			'ExecStop=/usr/sbin/swapoff /dev/zram0'
+			'ExecStop=/usr/sbin/zramctl --reset /dev/zram0'
+		)
+	}
+}
+
 Describe 'WSL home on Windows' {
 	It 'leaves the Linux links and profile out' {
 		$managed = @(chezmoi --source (Split-Path $PSScriptRoot) managed --path-style relative)
