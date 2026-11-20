@@ -1,5 +1,1 @@
-{{- $version := .chezmoi.version.version }}
-{{- if or (not $version) (not (hasPrefix "cheznous." (semver $version).Prerelease)) }}
-{{-   fail (printf "this source directory needs cheznous for its group directories, but this is chezmoi %q: install cheznous from https://github.com/ariesclark/cheznous" $version) }}
-{{- end }}
 .claude/settings.yaml
