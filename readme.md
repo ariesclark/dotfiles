@@ -66,5 +66,5 @@ In the distribution, WSL mounts the Windows drives at `/mnt/<letter>` and append
 
 - Keep on C: only the data that you cannot move.
 - To see the changes before you apply them, type `chezmoi diff`.
-- To see all the files that chezmoi makes, type `pwsh windows/archive.ps1`. The files for `~` go into `home/.archive`, and the files for `/` in the WSL distribution go into `home/.archive/root`. Symbolic links are not in the preview, because Windows cannot make them without administrator rights.
+- To see all the files that chezmoi makes, type `pwsh windows/archive.ps1`. The files for `~` go into `home/.archive`, and the files for the WSL distribution go into `home/.archive/root` for `/` and `home/.archive/wsl-home` for `~`. The WSL ones are made by cheznous in WSL, because `--override-data '{"chezmoi":{"os":"linux"}}'` switches the groups but keeps the Windows home directory and other `.chezmoi` values. Symbolic links are not in the preview, because Windows cannot make them without administrator rights.
 - To do the tests, type `Invoke-Pester windows`.
