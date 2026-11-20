@@ -1,2 +1,17 @@
-# This file is managed by Chezmoi. To change it, update:
-# {{ joinPath .chezmoi.sourceDir .chezmoi.sourceFile }}
+{{- $source := joinPath .chezmoi.sourceDir .chezmoi.sourceFile -}}
+{{- if eq .chezmoi.os "windows" -}}
+{{-   $source = replace "/" "\\" $source -}}
+{{- end -}}
+{{- $lines := list "This file is managed by Chezmoi. To change it, update:" $source -}}
+{{- $extension := ext .chezmoi.targetFile -}}
+{{- if has $extension (list ".xml" ".md") -}}
+<!--
+{{ join "\n" $lines }}
+-->
+{{- else -}}
+{{-   $prefix := ternary ";" "#" (eq $extension ".reg") -}}
+{{-   range $index, $line := $lines -}}
+{{-     if $index }}{{ "\n" }}{{ end -}}
+{{ $prefix }} {{ $line }}
+{{-   end -}}
+{{- end -}}

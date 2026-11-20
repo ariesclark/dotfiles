@@ -1,0 +1,6 @@
+{{ includeTemplate "generated" . }}
+[Slice]
+{{ with includeTemplate "systemd-memory" (list "MemoryMax" .system.wsl.docker.memory) }}{{ . }}
+{{ end -}}
+{{ with includeTemplate "systemd-memory" (list "MemorySwapMax" .system.wsl.docker.swap) }}{{ . }}
+{{ end -}}

@@ -1,0 +1,7 @@
+#!/bin/sh
+set -eu
+id dockerd > /dev/null 2>&1 || useradd --system --user-group --add-subids-for-system --create-home --home-dir /var/lib/dockerd --shell /usr/sbin/nologin dockerd
+usermod --append --groups dockerd {{ .system.wsl.user }}
+loginctl enable-linger dockerd
+setfacl --modify user:dockerd:x /home/{{ .system.wsl.user }}
+setfacl --recursive --modify user:dockerd:rwX,user:{{ .system.wsl.user }}:rwX,default:user:dockerd:rwX,default:user:{{ .system.wsl.user }}:rwX /home/{{ .system.wsl.user }}/repos

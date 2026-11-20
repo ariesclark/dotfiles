@@ -1,0 +1,13 @@
+{{ includeTemplate "generated" . }}
+[boot]
+systemd=true
+
+[user]
+default={{ .system.wsl.user }}
+
+[automount]
+enabled=true
+
+[interop]
+enabled=true
+appendWindowsPath=true

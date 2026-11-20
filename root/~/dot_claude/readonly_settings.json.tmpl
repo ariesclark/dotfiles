@@ -1,0 +1,11 @@
+{{- $declared := include "~/dot_claude/settings.yaml" | fromYaml -}}
+{{- $settings := $declared.settings -}}
+{{- if eq .chezmoi.os "linux" -}}
+{{-   $linux := $declared.linux -}}
+{{-   $_ := set $linux.statusLine "command" (joinPath .chezmoi.homeDir $linux.statusLine.command) -}}
+{{-   range $marketplace := values $linux.extraKnownMarketplaces -}}
+{{-     $_ := set $marketplace.source "path" (joinPath $.chezmoi.homeDir $marketplace.source.path) -}}
+{{-   end -}}
+{{-   $settings = mergeOverwrite $settings $linux -}}
+{{- end -}}
+{{ $settings | toPrettyJson }}

@@ -1,3 +1,0 @@
-{{- $data := deepCopy . -}}
-{{- $_ := set $data.chezmoi "sourceFile" "(eq .chezmoi.os `linux`)/dot_config/gh/config.yml.tmpl" -}}
-{{ includeTemplate "(eq .chezmoi.os `linux`)/dot_config/gh/config.yml.tmpl" $data }}

@@ -82,7 +82,7 @@ Describe 'generated label' {
 	}
 
 	It 'opens <Leaf> with the source file to change instead, in its own comment syntax' -ForEach @($targets | Where-Object { $_.Target -notlike '*.json' }) {
-		$sourceFile = if ($Target -like '*\GitHub CLI\config.yml') { Join-Path $repository 'home\(eq .chezmoi.os `linux`)\dot_config\gh\config.yml.tmpl' } else { [System.IO.Path]::GetFullPath((chezmoi --source $repository source-path $Target)) }
+		$sourceFile = if ($Target -like '*\GitHub CLI\config.yml') { Join-Path $repository 'root\~\(eq .chezmoi.os `linux`)\dot_config\gh\config.yml.tmpl' } else { [System.IO.Path]::GetFullPath((chezmoi --source $repository source-path $Target)) }
 		$label = 'This file is managed by Chezmoi. To change it, update:', $sourceFile
 		$expected = switch -Wildcard ($Target) {
 			'*.reg' { $label | ForEach-Object { "; $_" } }
@@ -102,7 +102,7 @@ Describe 'generated label' {
 	}
 
 	It 'labels the files this machine skips too' {
-		$sourceRoot = Join-Path $repository 'home'
+		$sourceRoot = Join-Path $repository 'root'
 		$sources = Get-ChildItem -Recurse -File -Force $sourceRoot | Where-Object {
 			$folders = [System.IO.Path]::GetRelativePath($sourceRoot, $_.DirectoryName).Split([System.IO.Path]::DirectorySeparatorChar)
 			-not ($folders | Where-Object { $_.StartsWith('.') -and $_ -ne '.' }) -and
@@ -151,20 +151,18 @@ Describe 'user.reg' {
 
 }
 
-Describe 'WSL root source' {
+Describe 'WSL root' {
 	BeforeAll {
 		$repository = Split-Path $PSScriptRoot
-		$rootSource = Join-Path $repository 'root'
-		$data = Join-Path $TestDrive 'wsl-root-data.json'
-		(chezmoi --source $repository execute-template '{{ includeTemplate "wsl-root-data" . }}') -join "`n" | Set-Content -LiteralPath $data -NoNewline
+		$linuxGroup = Join-Path $repository 'root\(eq .chezmoi.os `linux`)'
 		$rootArchive = Join-Path $TestDrive 'root.tar'
 		$rootRendered = Join-Path $TestDrive 'root-rendered'
 		New-Item -ItemType Directory -Force -Path $rootRendered | Out-Null
 		$rootWork = "/tmp/chezmoi-root-test-$PID"
-		$linuxPaths = @($rootSource, $data, $rootArchive | ForEach-Object { wsl.exe -d Ubuntu -u aries --exec wslpath -u $_ })
-		wsl.exe -d Ubuntu -u aries --exec chezmoi --source $linuxPaths[0] --destination "$rootWork/rootfs" --persistent-state "$rootWork/state.boltdb" --override-data-file $linuxPaths[1] archive --format tar --output $linuxPaths[2]
+		$linuxPaths = @($repository, $rootArchive | ForEach-Object { wsl.exe -d Ubuntu -u aries --exec wslpath -u $_ })
+		wsl.exe -d Ubuntu -u aries --exec chezmoi --source $linuxPaths[0] --destination / --persistent-state "$rootWork/state.boltdb" archive --format tar --output $linuxPaths[1] /etc /var
 		if ($LASTEXITCODE) {
-			throw 'chezmoi could not render the root source inside WSL.'
+			throw 'chezmoi could not render / inside WSL.'
 		}
 		wsl.exe -d Ubuntu -u aries --exec rm -rf $rootWork
 		tar -xf $rootArchive -C $rootRendered 2> $null
@@ -184,24 +182,25 @@ Describe 'WSL root source' {
 	}
 
 	It 'reruns the wsl.conf script when the rendered wsl.conf changes, also through data, and only then' {
-		function Get-ScriptHash([string] $DataJson) {
-			$file = Join-Path $TestDrive 'variant.json'
-			Set-Content -LiteralPath $file -Value $DataJson -NoNewline
-			@((chezmoi --source $rootSource --override-data-file $file execute-template --file (Join-Path $rootSource 'etc\run_onchange_after_wsl.conf.sh.tmpl')) -split "`n")[1]
+		function Get-ScriptHash([hashtable] $Wsl) {
+			$data = @{ system = @{ wsl = $Wsl } } | ConvertTo-Json -Depth 5 -Compress
+			@((chezmoi --source $repository --override-data $data execute-template --file (Join-Path $linuxGroup 'etc\run_onchange_after_wsl.conf.sh.tmpl')) -split "`n")[1]
 		}
-		$declared = Get-Content -Raw -LiteralPath $data | ConvertFrom-Json
-		$withUser = Get-Content -Raw -LiteralPath $data | ConvertFrom-Json
-		$withUser.wsl.user = 'someone'
-		$withPackage = Get-Content -Raw -LiteralPath $data | ConvertFrom-Json
-		$withPackage.wsl.packages += 'htop'
+		function Get-DeclaredWsl {
+			(chezmoi --source $repository execute-template '{{ .system.wsl | toJson }}') -join "`n" | ConvertFrom-Json -AsHashtable
+		}
+		$withUser = Get-DeclaredWsl
+		$withUser.user = 'someone'
+		$withPackage = Get-DeclaredWsl
+		$withPackage.packages += 'htop'
 
-		$original = Get-ScriptHash ($declared | ConvertTo-Json -Depth 5)
+		$original = Get-ScriptHash (Get-DeclaredWsl)
 		$original | Should -Match '^# [0-9a-f]{64}$'
-		Get-ScriptHash ($withUser | ConvertTo-Json -Depth 5) | Should -Not -Be $original
-		Get-ScriptHash ($withPackage | ConvertTo-Json -Depth 5) | Should -Be $original
+		Get-ScriptHash $withUser | Should -Not -Be $original
+		Get-ScriptHash $withPackage | Should -Be $original
 	}
-	It 'names every run_onchange_after script after a file next to it, in both sources' {
-		$scripts = @(Get-ChildItem $rootSource, (Join-Path $repository 'home') -Recurse -File -Filter 'run_onchange_after_*' | Where-Object { $_.FullName -notmatch '\\\.(archive|chezmoiscripts)\\' })
+	It 'names every run_onchange_after script after a file next to it' {
+		$scripts = @(Get-ChildItem (Join-Path $repository 'root') -Recurse -File -Filter 'run_onchange_after_*' | Where-Object { $_.FullName -notmatch '\\\.(archive|chezmoiscripts)\\' })
 		$scripts.Count | Should -BeGreaterThan 5
 		$unmatched = foreach ($script in $scripts) {
 			$watched = [System.IO.Path]::GetFileNameWithoutExtension([System.IO.Path]::GetFileNameWithoutExtension($script.Name.Substring('run_onchange_after_'.Length)))
@@ -217,21 +216,18 @@ Describe 'WSL root source' {
 Describe 'WSL memory limits' {
 	BeforeAll {
 		$repository = Split-Path $PSScriptRoot
-		$rootSource = Join-Path $repository 'root'
+		$linuxGroup = Join-Path $repository 'root\(eq .chezmoi.os `linux`)'
 		$memoryMB = [math]::Floor((Get-CimInstance Win32_PhysicalMemory | Measure-Object -Property Capacity -Sum).Sum / 1MB)
 		function Get-Setting([string[]] $Lines) {
 			@($Lines | Where-Object { $_ -and -not $_.StartsWith('#') })
 		}
 		function Render-WslConfig([string] $Memory, [string] $Swap) {
 			$data = @{ system = @{ wsl = @{ memory = $Memory; swap = $Swap } } } | ConvertTo-Json -Depth 5 -Compress
-			Get-Setting (chezmoi --source $repository --override-data $data execute-template --file (Join-Path $repository 'home\(eq .chezmoi.os `windows`)\dot_wslconfig.tmpl') 2>&1 | ForEach-Object { "$_" })
+			Get-Setting (chezmoi --source $repository --override-data $data execute-template --file (Join-Path $repository 'root\~\(eq .chezmoi.os `windows`)\dot_wslconfig.tmpl') 2>&1 | ForEach-Object { "$_" })
 		}
 		function Render-DockerLimit([string] $DropIn, [hashtable] $Docker) {
-			$data = Join-Path $TestDrive 'memory-root-data.json'
-			$rootData = (chezmoi --source $repository execute-template '{{ includeTemplate "wsl-root-data" . }}') -join "`n" | ConvertFrom-Json -AsHashtable
-			$rootData.wsl.docker = $Docker
-			$rootData | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $data
-			Get-Setting (chezmoi --source $rootSource --override-data-file $data execute-template --file (Join-Path $rootSource "var\lib\dockerd\dot_config\systemd\user\$DropIn\memory.conf.tmpl") 2>&1 | ForEach-Object { "$_" })
+			$data = @{ system = @{ wsl = @{ docker = $Docker } } } | ConvertTo-Json -Depth 5 -Compress
+			Get-Setting (chezmoi --source $repository --override-data $data execute-template --file (Join-Path $linuxGroup "var\lib\dockerd\dot_config\systemd\user\$DropIn\memory.conf.tmpl") 2>&1 | ForEach-Object { "$_" })
 		}
 	}
 
@@ -301,7 +297,7 @@ Describe 'WSL home' {
 		$work = "/tmp/chezmoi-home-test-$PID"
 		$homeRendered = "$work/rendered"
 		$checkout = wsl.exe -d Ubuntu -u aries --exec wslpath -u (Split-Path $PSScriptRoot)
-		wsl.exe -d Ubuntu -u aries --exec sh -c "set -eu; mkdir -p $homeRendered; chezmoi --source $checkout execute-template --init --file $checkout/home/.chezmoi.yaml.tmpl < /dev/null > $work/chezmoi.yaml"
+		wsl.exe -d Ubuntu -u aries --exec sh -c "set -eu; mkdir -p $homeRendered; chezmoi --source $checkout execute-template --init --file $checkout/root/.chezmoi.yaml.tmpl < /dev/null > $work/chezmoi.yaml"
 		$config = (wsl.exe -d Ubuntu -u aries --exec chezmoi --config "$work/chezmoi.yaml" dump-config --format json) -join "`n" | ConvertFrom-Json
 		$withOpStub = (wsl.exe -d Ubuntu -u aries --exec chezmoi --config "$work/chezmoi.yaml" dump-config --format json) -join "`n" | ConvertFrom-Json
 		$withOpStub.onepassword.command = "$work/op"
@@ -309,7 +305,7 @@ Describe 'WSL home' {
 		$stubs = wsl.exe -d Ubuntu -u aries --exec wslpath -u $TestDrive
 		wsl.exe -d Ubuntu -u aries --exec sh -c "set -eu; cp $stubs/op $work/op; chmod +x $work/op; chezmoi --config $stubs/chezmoi-linux.json --persistent-state $work/state.boltdb archive --format tar --output $work/home.tar; tar -xf $work/home.tar -C $homeRendered"
 		if ($LASTEXITCODE) {
-			throw 'chezmoi could not render home/ inside WSL.'
+			throw 'chezmoi could not render ~ inside WSL.'
 		}
 		$listing = @(wsl.exe -d Ubuntu -u aries --exec tar -tvf "$work/home.tar")
 		function Render-Home([string] $Target) {
@@ -387,8 +383,8 @@ Describe 'WSL home' {
 
 Describe 'zram swap' {
 	BeforeAll {
-		$rootSource = Join-Path (Split-Path $PSScriptRoot) 'root'
-		$unit = @(chezmoi --source $rootSource execute-template --file (Join-Path $rootSource 'etc\systemd\system\zram-swap.service.tmpl') | Where-Object { $_ -match '^Exec' })
+		$repository = Split-Path $PSScriptRoot
+		$unit = @(chezmoi --source $repository execute-template --file (Join-Path $repository 'root\(eq .chezmoi.os `linux`)\etc\systemd\system\zram-swap.service.tmpl') | Where-Object { $_ -match '^Exec' })
 	}
 
 	It 'creates /dev/zram0 again when a restart has reset it away, then sizes it at 8 GB' {
@@ -420,7 +416,7 @@ Describe 'WSL home on Windows' {
 	}
 
 	It 'keeps 1Password''s default command on Windows' {
-		chezmoi --source (Split-Path $PSScriptRoot) execute-template --init --file (Join-Path (Split-Path $PSScriptRoot) 'home\.chezmoi.yaml.tmpl') | Should -Not -Match 'onepassword'
+		chezmoi --source (Split-Path $PSScriptRoot) execute-template --init --file (Join-Path (Split-Path $PSScriptRoot) 'root\.chezmoi.yaml.tmpl') | Should -Not -Match 'onepassword'
 	}
 }
 
@@ -428,7 +424,7 @@ Describe 'windows configuration script' {
 	BeforeAll {
 		$repository = Split-Path $PSScriptRoot
 		function Render-Script([string] $Name) {
-			(chezmoi --source $repository execute-template --file (Join-Path $repository "home\$Name")) -join "`n"
+			(chezmoi --source $repository execute-template --file (Join-Path $repository "root\~\$Name")) -join "`n"
 		}
 	}
 
@@ -443,8 +439,17 @@ Describe 'windows configuration script' {
 
 	It 'installs the pinned cheznous in WSL, not the one running this apply' {
 		$data = @{ system = @{ cheznous = @{ version = '9.8.7-cheznous.6' } } } | ConvertTo-Json -Depth 3 -Compress
-		$script = (chezmoi --source $repository --override-data $data execute-template --file (Join-Path $repository 'home\(eq .chezmoi.os `windows`)\run_after_wsl.ps1.tmpl')) -join "`n"
+		$script = (chezmoi --source $repository --override-data $data execute-template --file (Join-Path $repository 'root\~\(eq .chezmoi.os `windows`)\run_after_wsl.ps1.tmpl')) -join "`n"
 		$script | Should -Match ([regex]::Escape("chezmoi --version 2> /dev/null | grep -q `"v9.8.7-cheznous.6,`" || curl -fsSL https://raw.githubusercontent.com/ariesclark/cheznous/v9.8.7-cheznous.6/assets/scripts/install.sh | sh -s -- -b /usr/local/bin -t v9.8.7-cheznous.6'"))
+	}
+
+	It 'applies / and ~ in WSL in one apply, as root with the user''s home directory, after the user''s init' {
+		$lines = @((chezmoi --source $repository execute-template --file (Join-Path $repository 'root\~\(eq .chezmoi.os `windows`)\run_after_wsl.ps1.tmpl')) -split "`n")
+		$applies = @($lines | Where-Object { $_ -match '\bchezmoi\b.*\b(apply|init)\b' -and $_ -notmatch '--version' })
+		$applies | Should -BeExactly @(
+			'wsl.exe -d Ubuntu -u aries --exec chezmoi init --no-tty --source $checkout'
+			'wsl.exe -d Ubuntu -u root --exec env HOME=/home/aries chezmoi --source $checkout --destination / --persistent-state /var/lib/chezmoi-root/state.boltdb --cache /var/cache/chezmoi-root apply --force --no-tty'
+		)
 	}
 
 	It 'pins the taskbar in a script of its own, which reruns for the layout and the shortcuts only' {
@@ -471,7 +476,7 @@ Describe 'git' {
 	}
 
 	It 'reads the signing key from 1Password instead of keeping it in the repo' {
-		Get-Content (Join-Path $source 'home\dot_config\git\readonly_config.tmpl') -Raw | Should -Not -Match 'AAAAC3Nza'
+		Get-Content (Join-Path $source 'root\~\dot_config\git\readonly_config.tmpl') -Raw | Should -Not -Match 'AAAAC3Nza'
 		$config | Should -Match "(?m)^\tsigningkey = $([regex]::Escape($mockSigningKey))$"
 	}
 

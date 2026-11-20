@@ -1,1 +1,0 @@
-{{- dict "wsl" (dict "user" .system.wsl.user "packages" .system.wsl.packages "docker" .system.wsl.docker) | toJson -}}

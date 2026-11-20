@@ -1,0 +1,12 @@
+{{- $wsl := printf "wsl.exe -d %s -u root --exec" .system.wsl.distribution -}}
+{{- $version := .system.cheznous.version -}}
+$ErrorActionPreference = 'Stop'
+$PSNativeCommandUseErrorActionPreference = $true
+$checkout = {{ $wsl }} wslpath -u '{{ .chezmoi.workingTree }}'
+{{ $wsl }} sh -c 'chezmoi --version 2> /dev/null | grep -q "v{{ $version }}," || curl -fsSL https://raw.githubusercontent.com/ariesclark/cheznous/v{{ $version }}/assets/scripts/install.sh | sh -s -- -b /usr/local/bin -t v{{ $version }}'
+wsl.exe -d {{ .system.wsl.distribution }} -u {{ .system.wsl.user }} --exec chezmoi init --no-tty --source $checkout
+{{ $wsl }} env HOME=/home/{{ .system.wsl.user }} chezmoi --source $checkout --destination / --persistent-state /var/lib/chezmoi-root/state.boltdb --cache /var/cache/chezmoi-root apply --force --no-tty
+{{ $wsl }} env PATH=/home/{{ .system.wsl.user }}/.local/share/vite-plus/bin:/usr/sbin:/usr/bin:/sbin:/bin PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright /home/{{ .system.wsl.user }}/.local/share/pnpm/bin/playwright-cli install-browser --with-deps chromium
+if (({{ $wsl }} sh -c 'test -e /run/wsl-restart-needed && echo restart || true') -eq 'restart') {
+	wsl.exe --shutdown
+}

@@ -53,7 +53,7 @@ Describe 'archive command' {
 	}
 
 	It 'is not part of an apply, so an apply asks 1Password once' {
-		$scripts = @(Get-ChildItem (Join-Path $repository 'home') -Recurse -Directory -Force -Filter '.chezmoiscripts' | Get-ChildItem -File)
+		$scripts = @(Get-ChildItem (Join-Path $repository 'root') -Recurse -Directory -Force -Filter '.chezmoiscripts' | Get-ChildItem -File)
 		$scripts.Count | Should -BeGreaterThan 0
 		$scripts |
 			Where-Object { (Get-Content -Raw -LiteralPath $_.FullName) -match 'chezmoi[^\r\n]*\barchive\b' } |
