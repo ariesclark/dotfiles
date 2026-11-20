@@ -1,5 +1,5 @@
 {{- $wsl := printf "wsl.exe -d %s -u root --exec" .system.wsl.distribution -}}
-{{- $version := .chezmoi.version.version -}}
+{{- $version := .system.cheznous.version -}}
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $true
 $checkout = {{ $wsl }} wslpath -u '{{ .chezmoi.workingTree }}'

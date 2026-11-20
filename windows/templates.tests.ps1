@@ -441,6 +441,12 @@ Describe 'windows configuration script' {
 		$script | Should -Match ([regex]::Escape("{ param([string[]] `$Sources) & '$executable' --persistent-state `$state target-path @Sources }"))
 	}
 
+	It 'installs the pinned cheznous in WSL, not the one running this apply' {
+		$data = @{ system = @{ cheznous = @{ version = '9.8.7-cheznous.6' } } } | ConvertTo-Json -Depth 3 -Compress
+		$script = (chezmoi --source $repository --override-data $data execute-template --file (Join-Path $repository 'home\(eq .chezmoi.os `windows`)\run_after_wsl.ps1.tmpl')) -join "`n"
+		$script | Should -Match ([regex]::Escape("chezmoi --version 2> /dev/null | grep -q `"v9.8.7-cheznous.6,`" || curl -fsSL https://raw.githubusercontent.com/ariesclark/cheznous/v9.8.7-cheznous.6/assets/scripts/install.sh | sh -s -- -b /usr/local/bin -t v9.8.7-cheznous.6'"))
+	}
+
 	It 'pins the taskbar in a script of its own, which reruns for the layout and the shortcuts only' {
 		$script = Render-Script '(eq .chezmoi.os `windows`)\dot_config\windows\run_onchange_after_taskbar.xml.ps1.tmpl'
 		$script | Should -Match '(?m)^Restart-Explorer$'
