@@ -7,6 +7,8 @@ mod windows;
 use linux as platform;
 #[cfg(windows)]
 use windows as platform;
+#[cfg(windows)]
+pub use windows::application;
 
 const SEARCH_DEPTH: usize = 4;
 

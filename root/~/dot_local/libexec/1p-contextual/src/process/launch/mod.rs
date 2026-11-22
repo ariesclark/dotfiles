@@ -1,5 +1,7 @@
 #[cfg(any(windows, test))]
 mod command_line;
+#[cfg(any(windows, test))]
+mod icon;
 #[cfg(windows)]
 mod windows;
 #[cfg(unix)]

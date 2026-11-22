@@ -47,15 +47,15 @@ pub fn label(request: &Request, worktree: Option<&str>) -> String {
 		Request::Push { repository, destination, commits } => {
 			let place = place(repository, destination.as_deref(), worktree);
 			match commits {
-				Some(1) => format!("a push of 1 commit to {place}"),
-				Some(count) if *count > 1 => format!("a push of {count} commits to {place}"),
-				_ => format!("a push to {place}"),
+				Some(1) => format!("pushing 1 commit to {place}"),
+				Some(count) if *count > 1 => format!("pushing {count} commits to {place}"),
+				_ => format!("pushing to {place}"),
 			}
 		}
-		Request::Fetch { repository } => format!("a fetch from {}", place(repository, None, worktree)),
-		Request::Archive { repository } => format!("an archive from {}", place(repository, None, worktree)),
-		Request::Lfs { repository, upload: true } => format!("an LFS upload to {}", place(repository, None, worktree)),
-		Request::Lfs { repository, upload: false } => format!("an LFS download from {}", place(repository, None, worktree)),
+		Request::Fetch { repository } => format!("fetching from {}", place(repository, None, worktree)),
+		Request::Archive { repository } => format!("fetching an archive from {}", place(repository, None, worktree)),
+		Request::Lfs { repository, upload: true } => format!("uploading LFS objects to {}", place(repository, None, worktree)),
+		Request::Lfs { repository, upload: false } => format!("downloading LFS objects from {}", place(repository, None, worktree)),
 		Request::Sign { repository, branch, tag, subject } => {
 			let quoted = subject.as_deref().map(|subject| format!(" \u{201C}{}\u{201D}", shorten(subject, SUBJECT_LIMIT))).unwrap_or_default();
 			match tag {
@@ -65,6 +65,12 @@ pub fn label(request: &Request, worktree: Option<&str>) -> String {
 		}
 	};
 	shorten(&file_name_safe(&text), LABEL_LIMIT)
+}
+
+#[cfg(any(windows, test))]
+pub fn with_application(application: Option<&str>, label: &str) -> String {
+	let subject = application.unwrap_or("git");
+	format!("{},", shorten(&file_name_safe(&format!("{subject}, {label}")), LABEL_LIMIT - 1))
 }
 
 #[cfg(test)]
@@ -81,40 +87,40 @@ mod tests {
 
 	#[test]
 	fn names_a_push_for_its_repository_destination_and_worktree() {
-		assert_eq!(label(&push(Some("claude/feature"), None), Some("elsewhere")), "a push to owner∕repo꞉claude∕feature (elsewhere)");
-		assert_eq!(label(&push(Some("main, dev"), None), Some("elsewhere")), "a push to owner∕repo꞉main, dev (elsewhere)");
+		assert_eq!(label(&push(Some("claude/feature"), None), Some("elsewhere")), "pushing to owner∕repo꞉claude∕feature (elsewhere)");
+		assert_eq!(label(&push(Some("main, dev"), None), Some("elsewhere")), "pushing to owner∕repo꞉main, dev (elsewhere)");
 	}
 
 	#[test]
 	fn counts_the_commits_a_push_carries() {
-		assert_eq!(label(&push(Some("main"), Some(3)), Some("elsewhere")), "a push of 3 commits to owner∕repo꞉main (elsewhere)");
-		assert_eq!(label(&push(Some("main"), Some(1)), Some("elsewhere")), "a push of 1 commit to owner∕repo꞉main (elsewhere)");
-		assert_eq!(label(&push(Some("main"), Some(0)), Some("elsewhere")), "a push to owner∕repo꞉main (elsewhere)");
+		assert_eq!(label(&push(Some("main"), Some(3)), Some("elsewhere")), "pushing 3 commits to owner∕repo꞉main (elsewhere)");
+		assert_eq!(label(&push(Some("main"), Some(1)), Some("elsewhere")), "pushing 1 commit to owner∕repo꞉main (elsewhere)");
+		assert_eq!(label(&push(Some("main"), Some(0)), Some("elsewhere")), "pushing to owner∕repo꞉main (elsewhere)");
 	}
 
 	#[test]
 	fn leaves_the_worktree_out_when_the_branch_or_its_last_part_names_it() {
-		assert_eq!(label(&push(Some("claude/feature-x"), None), Some("feature-x")), "a push to owner∕repo꞉claude∕feature-x");
-		assert_eq!(label(&push(Some("feature-x"), None), Some("feature-x")), "a push to owner∕repo꞉feature-x");
+		assert_eq!(label(&push(Some("claude/feature-x"), None), Some("feature-x")), "pushing to owner∕repo꞉claude∕feature-x");
+		assert_eq!(label(&push(Some("feature-x"), None), Some("feature-x")), "pushing to owner∕repo꞉feature-x");
 	}
 
 	#[test]
 	fn leaves_the_worktree_out_when_it_is_named_for_the_repository() {
-		assert_eq!(label(&push(Some("main"), None), Some("repo")), "a push to owner∕repo꞉main");
+		assert_eq!(label(&push(Some("main"), None), Some("repo")), "pushing to owner∕repo꞉main");
 	}
 
 	#[test]
 	fn names_a_push_without_a_known_destination_by_its_repository() {
-		assert_eq!(label(&push(None, None), Some("elsewhere")), "a push to owner∕repo (elsewhere)");
+		assert_eq!(label(&push(None, None), Some("elsewhere")), "pushing to owner∕repo (elsewhere)");
 	}
 
 	#[test]
 	fn names_fetches_archives_and_lfs_by_their_repository() {
 		let repository = || "owner/repo".to_string();
-		assert_eq!(label(&Request::Fetch { repository: repository() }, Some("elsewhere")), "a fetch from owner∕repo (elsewhere)");
-		assert_eq!(label(&Request::Archive { repository: repository() }, Some("repo")), "an archive from owner∕repo");
-		assert_eq!(label(&Request::Lfs { repository: repository(), upload: true }, Some("elsewhere")), "an LFS upload to owner∕repo (elsewhere)");
-		assert_eq!(label(&Request::Lfs { repository: repository(), upload: false }, Some("elsewhere")), "an LFS download from owner∕repo (elsewhere)");
+		assert_eq!(label(&Request::Fetch { repository: repository() }, Some("elsewhere")), "fetching from owner∕repo (elsewhere)");
+		assert_eq!(label(&Request::Archive { repository: repository() }, Some("repo")), "fetching an archive from owner∕repo");
+		assert_eq!(label(&Request::Lfs { repository: repository(), upload: true }, Some("elsewhere")), "uploading LFS objects to owner∕repo (elsewhere)");
+		assert_eq!(label(&Request::Lfs { repository: repository(), upload: false }, Some("elsewhere")), "downloading LFS objects from owner∕repo (elsewhere)");
 	}
 
 	#[test]
@@ -144,10 +150,32 @@ mod tests {
 	}
 
 	#[test]
+	fn sets_the_request_between_commas_after_the_application() {
+		assert_eq!(with_application(Some("Claude"), "pushing to owner∕repo꞉main"), "Claude, pushing to owner∕repo꞉main,");
+	}
+
+	#[test]
+	fn names_git_without_an_application() {
+		assert_eq!(with_application(None, "pushing to owner∕repo꞉main"), "git, pushing to owner∕repo꞉main,");
+	}
+
+	#[test]
+	fn replaces_characters_a_file_name_cannot_hold_in_the_application() {
+		assert_eq!(with_application(Some("Tools/Git: <Shell>"), "fetching from owner∕repo"), "Tools∕Git꞉ -Shell-, fetching from owner∕repo,");
+	}
+
+	#[test]
+	fn keeps_the_closing_comma_when_it_cuts_a_label_at_a_hundred_and_twenty_characters() {
+		let labeled = with_application(Some("Claude"), &format!("pushing to owner∕repo꞉{}", "b".repeat(110)));
+		assert_eq!(labeled, format!("Claude, pushing to owner∕repo꞉{}…,", "b".repeat(88)));
+		assert_eq!(labeled.chars().count(), 120);
+	}
+
+	#[test]
 	fn keeps_the_whole_label_within_a_hundred_and_twenty_characters() {
 		let branch = "b".repeat(200);
 		let labeled = label(&push(Some(&branch), None), Some("repo"));
 		assert_eq!(labeled.chars().count(), 120);
-		assert_eq!(labeled, format!("a push to owner∕repo꞉{}…", "b".repeat(98)));
+		assert_eq!(labeled, format!("pushing to owner∕repo꞉{}…", "b".repeat(97)));
 	}
 }

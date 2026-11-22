@@ -115,7 +115,10 @@ pub fn run_named_from_wsl(arguments: &[OsString]) -> ! {
 }
 
 fn run(label: &str, program: &OsStr, arguments: &[OsString], streams: Streams) -> ! {
-	match start_named(label, program, arguments, streams) {
+	let application = crate::process::ancestry::application();
+	let label = crate::label::with_application(application.as_ref().map(|application| application.name.as_str()), label);
+	let icon_source = application.as_ref().map(|application| application.executable.as_path());
+	match start_named(&label, icon_source, program, arguments, streams) {
 		Ok(status) => process::exit(status),
 		Err(error) => {
 			eprintln!("1p-contextual: {error}; running {} without a name", program.to_string_lossy());
@@ -166,12 +169,20 @@ fn remove_when_released(directory: &Path) {
 	}
 }
 
-fn start_named(label: &str, program: &OsStr, arguments: &[OsString], streams: Streams) -> io::Result<i32> {
+fn named_copy(copy: &Path, icon_source: Option<&Path>) -> io::Result<()> {
+	fs::copy(env::current_exe()?, copy)?;
+	if let Some(icon_source) = icon_source {
+		let _keeps_its_own_icon = super::icon::borrow(icon_source, copy);
+	}
+	Ok(())
+}
+
+fn start_named(label: &str, icon_source: Option<&Path>, program: &OsStr, arguments: &[OsString], streams: Streams) -> io::Result<i32> {
 	sweep_stopped_runs();
 	let directory = copies().join(process::id().to_string());
 	fs::create_dir_all(&directory)?;
 	let copy = directory.join(format!("{label}.exe"));
-	let result = fs::copy(env::current_exe()?, &copy).and_then(|_| match streams {
+	let result = named_copy(&copy, icon_source).and_then(|_| match streams {
 		Streams::Own => run_with_own_streams(&copy, program, arguments),
 		Streams::Relayed => run_with_relayed_streams(&copy, program, arguments),
 	});

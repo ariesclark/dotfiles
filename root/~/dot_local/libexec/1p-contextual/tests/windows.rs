@@ -3,16 +3,20 @@
 use std::ffi::OsStr;
 use std::os::windows::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
-use std::process::{Command, ExitStatus, Stdio};
+use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 use std::{env, fs, thread};
 
-use windows_sys::Win32::Foundation::{CloseHandle, FreeLibrary, FALSE};
-use windows_sys::Win32::System::LibraryLoader::{FindResourceW, LoadLibraryExW, LOAD_LIBRARY_AS_DATAFILE, LOAD_LIBRARY_AS_IMAGE_RESOURCE};
+use windows_sys::Win32::Foundation::{CloseHandle, FreeLibrary, FALSE, HMODULE};
+use windows_sys::Win32::System::LibraryLoader::{FindResourceW, LoadLibraryExW, LoadResource, LockResource, SizeofResource, LOAD_LIBRARY_AS_DATAFILE, LOAD_LIBRARY_AS_IMAGE_RESOURCE};
 use windows_sys::Win32::System::Threading::{GetExitCodeProcess, OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION};
 
 const UNRESOLVABLE: &str = "ssh://git@nonexistent.invalid/owner/repo.git";
 const SSH_KEYGEN: &str = "C:/Windows/System32/OpenSSH/ssh-keygen.exe";
+const TEST_APP: &str = "Test App.exe";
+const DESCRIBED_APP: &str = "Described App.exe";
+const ICONIC_APP: &str = "Iconic App.exe";
+const ICON_IMAGE: &[u8] = b"\x89PNG\r\n\x1a\n an icon only the iconic app carries";
 
 struct Fixture {
 	root: tempfile::TempDir,
@@ -27,6 +31,15 @@ impl Fixture {
 		for (built_as, named) in [("ssh.exe", "ssh.exe"), ("op-ssh-sign.exe", "op-ssh-sign.exe"), ("examples/lister.exe", "lister.exe")] {
 			fs::copy(built.join(built_as), root.path().join("programs").join(named)).unwrap_or_else(|error| panic!("{built_as} should be built: {error}"));
 		}
+		for app in [TEST_APP, DESCRIBED_APP, ICONIC_APP] {
+			fs::copy(built.join("examples/app.exe"), root.path().join("programs").join(app)).expect("examples/app.exe should be built");
+		}
+		let changer = root.path().join("programs").join(DESCRIBED_APP);
+		let stripped = Command::new(&changer).arg("--strip-resources").arg(root.path().join("programs").join(TEST_APP)).status();
+		assert!(stripped.expect("the app should run").success(), "{TEST_APP} should lose its version information and icon");
+		fs::write(root.path().join("icon-image"), ICON_IMAGE).unwrap();
+		let given = Command::new(&changer).arg("--give-icon").arg(root.path().join("programs").join(ICONIC_APP)).arg(root.path().join("icon-image")).status();
+		assert!(given.expect("the app should run").success(), "{ICONIC_APP} should carry its own icon");
 		Fixture { root }
 	}
 
@@ -53,13 +66,24 @@ impl Fixture {
 		command
 	}
 
-	fn git(&self, directory: &Path, arguments: &[&str]) -> ExitStatus {
-		self.command("git", directory)
-			.args(["-c", "init.defaultBranch=main", "-c", "user.name=Stub", "-c", "user.email=stub@example.com"])
-			.args(["-c", "commit.gpgsign=false", "-c", "tag.gpgsign=false", "-c", "gpg.format=ssh"])
-			.args(arguments)
-			.status()
-			.expect("git should run")
+	fn from_app(&self, app: &str, directory: &Path, arguments: &[&str], environment: &[(&str, &str)]) -> i32 {
+		let status = self.path("status");
+		let detached = self.command(self.path("programs").join(app), directory).envs(environment.iter().copied()).arg("--detach").arg(&status).args(arguments).status();
+		assert!(detached.expect("the app should run").success());
+		let code = wait_until(Duration::from_secs(60), || fs::read_to_string(&status).ok()).expect("the app should finish its command");
+		fs::remove_file(&status).unwrap();
+		code.trim().parse().expect("the app should record an exit code")
+	}
+
+	fn git_from(&self, app: &str, directory: &Path, arguments: &[&str]) -> i32 {
+		let mut all = vec!["git", "-c", "init.defaultBranch=main", "-c", "user.name=Stub", "-c", "user.email=stub@example.com"];
+		all.extend(["-c", "commit.gpgsign=false", "-c", "tag.gpgsign=false", "-c", "gpg.format=ssh"]);
+		all.extend(arguments);
+		self.from_app(app, directory, &all, &[])
+	}
+
+	fn git(&self, directory: &Path, arguments: &[&str]) -> i32 {
+		self.git_from(TEST_APP, directory, arguments)
 	}
 
 	fn checkout(&self, name: &str, branch: Option<&str>) -> PathBuf {
@@ -93,15 +117,12 @@ impl Fixture {
 		key.to_string_lossy().replace('\\', "/")
 	}
 
-	fn sign(&self, checkout: &Path, signer: &str, arguments: &[&str]) -> ExitStatus {
+	fn sign(&self, checkout: &Path, signer: &str, arguments: &[&str]) -> i32 {
 		let program = format!("gpg.ssh.program={}", self.program("op-ssh-sign.exe"));
 		let key = format!("user.signingkey={}", self.signing_key());
-		self.command("git", checkout)
-			.env("OP_SSH_SIGN_CONTEXTUAL_PROGRAM", signer)
-			.args(["-c", "user.name=Stub", "-c", "user.email=stub@example.com", "-c", "gpg.format=ssh", "-c", &program, "-c", &key])
-			.args(arguments)
-			.status()
-			.expect("git should run")
+		let mut all = vec!["git", "-c", "user.name=Stub", "-c", "user.email=stub@example.com", "-c", "gpg.format=ssh", "-c", &program, "-c", &key];
+		all.extend(arguments);
+		self.from_app(TEST_APP, checkout, &all, &[("OP_SSH_SIGN_CONTEXTUAL_PROGRAM", signer)])
 	}
 
 	fn listing(&self) -> Vec<String> {
@@ -157,7 +178,7 @@ fn names_a_push_for_its_commits_repository_branch_and_worktree_then_deletes_the_
 	let fixture = Fixture::new();
 	let checkout = fixture.checkout("elsewhere", Some("claude/feature"));
 	fixture.push(&checkout, &["HEAD"]);
-	assert_eq!(fixture.listing(), ["a push of 1 commit to owner∕repo꞉claude∕feature (elsewhere).exe"]);
+	assert_eq!(fixture.listing(), ["Test App, pushing 1 commit to owner∕repo꞉claude∕feature (elsewhere),.exe"]);
 	assert_eq!(fixture.left_behind(), Vec::<PathBuf>::new());
 }
 
@@ -166,7 +187,7 @@ fn names_the_branch_a_push_goes_to_not_the_checked_out_one() {
 	let fixture = Fixture::new();
 	let checkout = fixture.checkout("elsewhere", Some("claude/feature"));
 	fixture.push(&checkout, &["HEAD:main"]);
-	assert_eq!(fixture.listing(), ["a push of 1 commit to owner∕repo꞉main (elsewhere).exe"]);
+	assert_eq!(fixture.listing(), ["Test App, pushing 1 commit to owner∕repo꞉main (elsewhere),.exe"]);
 }
 
 #[test]
@@ -178,7 +199,7 @@ fn names_the_branch_a_bare_push_goes_to_as_git_resolves_it() {
 	fixture.git(&checkout, &["branch", "--quiet", "--set-upstream-to=unresolvable/main"]);
 	let ssh_command = fixture.ssh_command();
 	fixture.git(&checkout, &["-c", "push.default=upstream", "-c", &ssh_command, "push", "--dry-run"]);
-	assert_eq!(fixture.listing(), ["a push to owner∕repo꞉main (tracking).exe"]);
+	assert_eq!(fixture.listing(), ["Test App, pushing to owner∕repo꞉main (tracking),.exe"]);
 }
 
 #[test]
@@ -186,7 +207,7 @@ fn leaves_the_worktree_out_when_the_branch_names_it() {
 	let fixture = Fixture::new();
 	let checkout = fixture.checkout("feature-x", Some("claude/feature-x"));
 	fixture.push(&checkout, &["HEAD"]);
-	assert_eq!(fixture.listing(), ["a push of 1 commit to owner∕repo꞉claude∕feature-x.exe"]);
+	assert_eq!(fixture.listing(), ["Test App, pushing 1 commit to owner∕repo꞉claude∕feature-x,.exe"]);
 }
 
 #[test]
@@ -194,7 +215,7 @@ fn leaves_the_worktree_out_when_it_is_named_for_the_repository() {
 	let fixture = Fixture::new();
 	let checkout = fixture.checkout("repo", None);
 	fixture.push(&checkout, &["HEAD"]);
-	assert_eq!(fixture.listing(), ["a push of 1 commit to owner∕repo꞉main.exe"]);
+	assert_eq!(fixture.listing(), ["Test App, pushing 1 commit to owner∕repo꞉main,.exe"]);
 }
 
 #[test]
@@ -203,7 +224,60 @@ fn names_a_fetch_for_its_repository_and_worktree() {
 	let checkout = fixture.checkout("elsewhere", Some("claude/feature"));
 	let ssh_command = fixture.ssh_command();
 	fixture.git(&checkout, &["-c", &ssh_command, "ls-remote", UNRESOLVABLE]);
-	assert_eq!(fixture.listing(), ["a fetch from owner∕repo (elsewhere).exe"]);
+	assert_eq!(fixture.listing(), ["Test App, fetching from owner∕repo (elsewhere),.exe"]);
+}
+
+#[test]
+fn names_the_application_by_its_description() {
+	let fixture = Fixture::new();
+	let checkout = fixture.checkout("repo", None);
+	let ssh_command = fixture.ssh_command();
+	fixture.git_from(DESCRIBED_APP, &checkout, &["-c", &ssh_command, "push", "--dry-run", UNRESOLVABLE, "HEAD"]);
+	assert_eq!(fixture.listing(), ["op-contextual, pushing 1 commit to owner∕repo꞉main,.exe"]);
+}
+
+fn icon_images(executable: &Path) -> Vec<Vec<u8>> {
+	fn resource(module: HMODULE, name: u16, kind: u16) -> Vec<u8> {
+		let found = unsafe { FindResourceW(module, name as usize as *const u16, kind as usize as *const u16) };
+		assert!(!found.is_null(), "resource {name} of type {kind} should exist");
+		let size = unsafe { SizeofResource(module, found) } as usize;
+		let data = unsafe { LockResource(LoadResource(module, found)) } as *const u8;
+		unsafe { std::slice::from_raw_parts(data, size) }.to_vec()
+	}
+	let path = wide(&executable.to_string_lossy());
+	let module = unsafe { LoadLibraryExW(path.as_ptr(), std::ptr::null_mut(), LOAD_LIBRARY_AS_DATAFILE | LOAD_LIBRARY_AS_IMAGE_RESOURCE) };
+	assert!(!module.is_null(), "{} should load as a resource file", executable.display());
+	let group = resource(module, 1, 14);
+	let count = u16::from_le_bytes([group[4], group[5]]) as usize;
+	let images = (0..count).map(|entry| resource(module, u16::from_le_bytes([group[6 + 14 * entry + 12], group[6 + 14 * entry + 13]]), 3)).collect();
+	unsafe { FreeLibrary(module) };
+	images
+}
+
+fn named_copy_from(fixture: &Fixture, app: &str) -> PathBuf {
+	let checkout = fixture.checkout("repo", None);
+	let ssh_command = fixture.ssh_command();
+	let kept = fixture.path("kept");
+	let kept_text = kept.to_string_lossy().into_owned();
+	fixture.from_app(app, &checkout, &["git", "-c", &ssh_command, "push", "--dry-run", UNRESOLVABLE, "HEAD"], &[("CONTEXTUAL_KEEP", &kept_text)]);
+	let copies: Vec<PathBuf> = fs::read_dir(&kept).expect("the stand-in should have kept the named copy").map(|entry| entry.unwrap().path()).collect();
+	assert_eq!(copies.len(), 1, "one named copy should run: {copies:?}");
+	copies.into_iter().next().unwrap()
+}
+
+#[test]
+fn gives_the_named_copy_the_icon_of_the_application() {
+	let fixture = Fixture::new();
+	let images = icon_images(&named_copy_from(&fixture, ICONIC_APP));
+	assert!(images == [ICON_IMAGE.to_vec()], "the copy should carry only the app's image; it carries images of {:?} bytes", images.iter().map(Vec::len).collect::<Vec<_>>());
+}
+
+#[test]
+fn keeps_its_own_icon_when_the_application_has_none() {
+	let fixture = Fixture::new();
+	let images = icon_images(&named_copy_from(&fixture, TEST_APP));
+	let own = icon_images(&fixture.path("programs").join("ssh.exe"));
+	assert!(images == own, "the copy should carry its own {:?}-byte images; it carries {:?}", own.iter().map(Vec::len).collect::<Vec<_>>(), images.iter().map(Vec::len).collect::<Vec<_>>());
 }
 
 #[test]
@@ -228,7 +302,7 @@ fn names_a_commit_signature_for_its_subject_repository_branch_and_worktree() {
 	let fixture = Fixture::new();
 	let checkout = fixture.checkout("elsewhere", Some("claude/feature"));
 	fixture.sign(&checkout, &fixture.program("lister.exe"), &["commit", "--quiet", "--gpg-sign", "--allow-empty", "--message", "feat(git): sign it"]);
-	assert_eq!(fixture.listing(), ["signing “feat(git)꞉ sign it” in owner∕repo꞉claude∕feature (elsewhere).exe"]);
+	assert_eq!(fixture.listing(), ["Test App, signing “feat(git)꞉ sign it” in owner∕repo꞉claude∕feature (elsewhere),.exe"]);
 	assert_eq!(fixture.left_behind(), Vec::<PathBuf>::new());
 }
 
@@ -237,7 +311,7 @@ fn names_a_tag_signature_without_a_branch() {
 	let fixture = Fixture::new();
 	let checkout = fixture.checkout("feature-x", Some("claude/feature-x"));
 	fixture.sign(&checkout, &fixture.program("lister.exe"), &["tag", "--sign", "--message", "release it", "v1"]);
-	assert_eq!(fixture.listing(), ["signing tag v1 “release it” in owner∕repo (feature-x).exe"]);
+	assert_eq!(fixture.listing(), ["Test App, signing tag v1 “release it” in owner∕repo (feature-x),.exe"]);
 }
 
 #[test]
@@ -245,7 +319,7 @@ fn names_a_signature_without_origin_by_the_repository_folder() {
 	let fixture = Fixture::new();
 	fixture.git(fixture.root.path(), &["init", "--quiet", "local-only"]);
 	fixture.sign(&fixture.path("local-only"), &fixture.program("lister.exe"), &["commit", "--quiet", "--gpg-sign", "--allow-empty", "--message", "feat(git): sign it"]);
-	assert_eq!(fixture.listing(), ["signing “feat(git)꞉ sign it” in local-only꞉main.exe"]);
+	assert_eq!(fixture.listing(), ["Test App, signing “feat(git)꞉ sign it” in local-only꞉main,.exe"]);
 }
 
 #[test]
@@ -255,7 +329,7 @@ fn hands_git_the_signature_of_a_signer_that_exits_at_once() {
 	for attempt in 1..=5 {
 		let message = format!("feat(git): sign it {attempt}");
 		let status = fixture.sign(&checkout, SSH_KEYGEN, &["commit", "--quiet", "--gpg-sign", "--allow-empty", "--message", &message]);
-		assert!(status.success(), "attempt {attempt} should sign");
+		assert_eq!(status, 0, "attempt {attempt} should sign");
 	}
 	for commit in 0..5 {
 		let object = Command::new("git").current_dir(&checkout).args(["cat-file", "commit", &format!("HEAD~{commit}")]).output().unwrap();
