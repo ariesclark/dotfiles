@@ -1,0 +1,30 @@
+#!/bin/sh
+{{- $crate := joinPath .chezmoi.sourceDir "~/dot_local/libexec/1p-contextual" }}
+# reruns when 1p-contextual changes: {{ range list "src/**/*.rs" "Cargo.*" "build.rs" "assets/*" }}{{ template "glob-hash" (joinPath $crate .) }} {{ end }}
+set -eu
+crate={{ $crate | squote }}
+export CARGO_TARGET_DIR="$HOME/.cache/1p-contextual"
+cargo build --quiet --release --locked --manifest-path "$crate/Cargo.toml" --target x86_64-pc-windows-gnu --target x86_64-unknown-linux-gnu
+for name in ssh op-ssh-sign; do
+	if ! "$CARGO_TARGET_DIR/x86_64-pc-windows-gnu/release/$name.exe" --1p-contextual-stand-in; then
+		echo "1p-contextual: Windows will not run the new $name.exe, likely Smart App Control; keeping the installed build" >&2
+		exit 1
+	fi
+done
+windows_home=$(wslpath "$(cmd.exe /d /c 'echo %USERPROFILE%' 2> /dev/null | tr -d '\r')")
+windows="$windows_home/.local/libexec/1p-contextual"
+linux="$HOME/.local/libexec/1p-contextual"
+mkdir -p "$windows" "$linux"
+install_as() {
+	cp "$1" "$2.partial"
+	if [ -e "$2" ]; then
+		mv -f "$2" "$2.old.$$"
+	fi
+	mv -f "$2.partial" "$2"
+}
+for name in ssh op-ssh-sign; do
+	install_as "$CARGO_TARGET_DIR/x86_64-pc-windows-gnu/release/$name.exe" "$windows/$name.exe"
+	install_as "$CARGO_TARGET_DIR/x86_64-unknown-linux-gnu/release/$name" "$linux/$name"
+done
+rm -f "$windows"/*.old.* "$linux"/*.old.* 2> /dev/null || true
+ln -sfn "$windows/ssh.exe" "$linux/1p-contextual.exe"

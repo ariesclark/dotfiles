@@ -1,3 +1,4 @@
 #!/bin/sh
 set -eu
 rustup default > /dev/null 2>&1 || rustup default stable
+rustup target list --installed | grep -qx x86_64-pc-windows-gnu || rustup target add x86_64-pc-windows-gnu

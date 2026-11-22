@@ -1,3 +1,3 @@
 .claude/settings.yaml
-.local/libexec/1p-contextual/*.ps1
-.local/libexec/1p-contextual/readme.md
+.local/libexec/1p-contextual
+.local/libexec/1p-contextual/**

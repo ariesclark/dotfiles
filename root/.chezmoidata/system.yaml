@@ -30,6 +30,7 @@ system:
       - shfmt
       - unzip
       - rustup
+      - mingw-w64
       - build-essential
       - pkg-config
       - libssl-dev
