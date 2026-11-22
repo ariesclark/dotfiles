@@ -266,6 +266,23 @@ fn hands_git_the_signature_of_a_signer_that_exits_at_once() {
 }
 
 #[test]
+fn passes_other_signer_commands_to_the_signer_on_path_not_to_itself() {
+	let fixture = Fixture::new();
+	let checkout = fixture.checkout("repo", None);
+	fs::create_dir(fixture.path("on-path")).unwrap();
+	fs::copy(fixture.path("programs").join("lister.exe"), fixture.path("on-path").join("op-ssh-sign.exe")).unwrap();
+	let path = env::join_paths([fixture.path("on-path")].into_iter().chain(env::split_paths(&env::var_os("PATH").unwrap()))).unwrap();
+	let mut signer = fixture.command(fixture.program("op-ssh-sign.exe"), &checkout).env("PATH", path).args(["-Y", "check-novalidate", "-n", "git", "-s", "signature"]).spawn().unwrap();
+	let status = wait_until(Duration::from_secs(20), || signer.try_wait().unwrap());
+	if status.is_none() {
+		fs::rename(fixture.path("programs").join("op-ssh-sign.exe"), fixture.path("programs").join("op-ssh-sign.stopped")).unwrap();
+		signer.wait().unwrap();
+	}
+	assert_eq!(status.and_then(|status| status.code()), Some(3), "op-ssh-sign.exe should run the signer on PATH once, not itself over and over");
+	assert_eq!(fixture.listing(), Vec::<String>::new());
+}
+
+#[test]
 fn stops_the_named_program_when_it_is_stopped_itself() {
 	let fixture = Fixture::new();
 	let checkout = fixture.checkout("elsewhere", Some("claude/feature"));

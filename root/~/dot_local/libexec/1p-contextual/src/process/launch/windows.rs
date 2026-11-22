@@ -69,8 +69,20 @@ struct Supervisor {
 	_job: OwnedHandle,
 }
 
+fn on_path(program: &OsStr) -> PathBuf {
+	let named = Path::new(program);
+	if named.components().count() > 1 {
+		return named.to_path_buf();
+	}
+	let mut with_extension = program.to_os_string();
+	with_extension.push(".exe");
+	let names = if named.extension().is_some() { vec![program.to_os_string()] } else { vec![program.to_os_string(), with_extension] };
+	let directories = env::var_os("PATH").map(|path| env::split_paths(&path).collect::<Vec<_>>()).unwrap_or_default();
+	directories.iter().flat_map(|directory| names.iter().map(move |name| directory.join(name))).find(|candidate| candidate.is_file()).unwrap_or_else(|| named.to_path_buf())
+}
+
 pub fn pass_through(program: &OsStr, arguments: &[OsString]) -> ! {
-	match Command::new(program).args(arguments).status() {
+	match Command::new(on_path(program)).args(arguments).status() {
 		Ok(status) => process::exit(status.code().unwrap_or(255)),
 		Err(error) => {
 			eprintln!("1p-contextual: could not start {}: {error}", program.to_string_lossy());
