@@ -366,8 +366,9 @@ Describe 'WSL home' {
 	It 'signs git commits through 1Password on Windows, with the key from 1Password' {
 		$git = Render-Home '.config/git/config'
 		$git | Should -Match "(?m)^\tsigningkey = $([regex]::Escape($mockSigningKey))$"
-		$git | Should -Match '(?m)^\tprogram = op-ssh-sign-wsl\.exe$'
-		$git | Should -Match '(?m)^\tsshCommand = ssh\.exe$'
+		$git | Should -Match '(?m)^\tprogram = /[^\n]+/\.local/libexec/1p-contextual/op-ssh-sign$'
+		$git | Should -Match '(?m)^\tsshCommand = sh ~/\.local/libexec/1p-contextual/ssh ssh\.exe$'
+		$git | Should -Match '(?m)^\tvariant = ssh$'
 		((Render-Home '.config/git/allowed_signers').Trim() -split "`n")[-1] | Should -BeExactly "$mockEmail namespaces=`"git`" $mockSigningKey"
 	}
 
@@ -466,8 +467,9 @@ Describe 'git' {
 
 	It 'signs with SSH through 1Password on Windows' {
 		$config | Should -Match '(?m)^\tgpgsign = true$'
-		$config | Should -Match '(?m)^\tprogram = C:/Users/[^/]+/AppData/Local/Microsoft/WindowsApps/op-ssh-sign\.exe$'
-		$config | Should -Match '(?m)^\tsshCommand = C:/Windows/System32/OpenSSH/ssh\.exe$'
+		$config | Should -Match '(?m)^\tprogram = C:/Users/[^/]+/\.local/libexec/1p-contextual/op-ssh-sign$'
+		$config | Should -Match '(?m)^\tsshCommand = sh ~/\.local/libexec/1p-contextual/ssh C:/Windows/System32/OpenSSH/ssh\.exe$'
+		$config | Should -Match '(?m)^\tvariant = ssh$'
 	}
 
 	It 'reads the name and email from 1Password, on lines of their own' {
@@ -503,6 +505,15 @@ Describe 'git' {
 			git -C $repository remote get-url --push origin | Should -BeExactly 'git@github.com:owner/repo.git'
 		} finally {
 			Remove-Item env:GIT_CONFIG_GLOBAL
+		}
+	}
+
+	It 'deploys the 1p-contextual scripts as they are, without their tests and readme' {
+		$deployed = Join-Path $rendered '.local\libexec\1p-contextual'
+		@(Get-ChildItem -LiteralPath $deployed -Recurse -File | ForEach-Object Name | Sort-Object) | Should -BeExactly @('op-ssh-sign', 'run', 'ssh')
+		$scripts = Join-Path $source 'root\~\dot_local\libexec\1p-contextual'
+		foreach ($script in @{ ssh = 'ssh'; run = 'run'; 'op-ssh-sign' = 'executable_op-ssh-sign' }.GetEnumerator()) {
+			[IO.File]::ReadAllText((Join-Path $deployed $script.Key)) | Should -BeExactly ([IO.File]::ReadAllText((Join-Path $scripts $script.Value)))
 		}
 	}
 }
