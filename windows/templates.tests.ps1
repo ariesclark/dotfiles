@@ -429,15 +429,6 @@ Describe 'windows configuration script' {
 		}
 	}
 
-	It 'runs <Name> with the chezmoi that applies it, which a first apply has not put on PATH yet' -ForEach @(
-		@{ Name = 'run_before_90-writable.ps1.tmpl' }
-		@{ Name = 'run_after_05-readonly.ps1.tmpl' }
-	) {
-		$executable = chezmoi --source $repository execute-template '{{ .chezmoi.executable }}'
-		$script = Render-Script ('(eq .chezmoi.os `windows`)\.chezmoiscripts\' + $Name)
-		$script | Should -Match ([regex]::Escape("{ param([string[]] `$Sources) & '$executable' --persistent-state `$state target-path @Sources }"))
-	}
-
 	It 'installs the pinned cheznous in WSL, not the one running this apply' {
 		$data = @{ system = @{ cheznous = @{ version = '9.8.7-cheznous.6' } } } | ConvertTo-Json -Depth 3 -Compress
 		$script = (chezmoi --source $repository --override-data $data execute-template --file (Join-Path $repository 'root\~\(eq .chezmoi.os `windows`)\run_after_wsl.ps1.tmpl')) -join "`n"

@@ -47,7 +47,7 @@ One `chezmoi apply` on Windows does these steps, in this order:
 
 1. The scripts before the files: partitions, volumes and the pagefile, cheznous (only when its version in `system.yaml` changes), Scoop, the packages.
 2. The files from `root/~/` go into `~`. This includes `.wslconfig`.
-3. The scripts after the files: read-only attributes, registrations, `user.reg`, `winget configure`, the taskbar pins (only when the pins change).
+3. The scripts after the files: registrations, `user.reg`, `winget configure`, the taskbar pins (only when the pins change).
 4. The WSL script ([`run_after_wsl.ps1.tmpl`](<root/~/(eq .chezmoi.os `windows`)/run_after_wsl.ps1.tmpl>)) runs on each apply:
    1. It finds this checkout in the distribution with `wslpath`, under WSL's mount of its drive, such as `/mnt/c`.
    2. It installs cheznous in the distribution, at the same version as on Windows, if that version is not there.

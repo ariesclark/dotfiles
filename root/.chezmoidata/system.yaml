@@ -62,4 +62,4 @@ system:
     record: 'D:\Machine\packages.json'
 
   cheznous:
-    version: '2.74.1-cheznous.4'
+    version: '2.74.1-cheznous.5'
