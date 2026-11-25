@@ -373,7 +373,7 @@ Describe 'WSL home' {
 	}
 
 	It 'gives Claude Code its instructions and settings' {
-		Render-Home '.claude/CLAUDE.md' | Should -Match '(?m)^# Excellence$'
+		Render-Home '.claude/CLAUDE.md' | Should -Match '(?m)^# Principles$'
 		(Render-Home '.claude/settings.json' | ConvertFrom-Json).PSObject.Properties['statusLine'] | Should -Not -BeNullOrEmpty
 	}
 
