@@ -7,9 +7,10 @@ use std::env;
 use std::ffi::{OsStr, OsString};
 use std::fs;
 
+use git::push::Destination;
 use git::repository;
 use git::transport::RemoteCommand;
-use request::Request;
+use request::{Request, Update};
 
 pub fn ssh() -> ! {
 	let arguments = process::launch::arguments();
@@ -35,14 +36,19 @@ fn push(repository: String) -> Request {
 	let push = process::ancestry::find(git::push::parse);
 	let current_branch = repository::current_branch();
 	let configuration = push.as_ref().map_or(&[][..], |push| push.configuration.as_slice());
-	let destinations = push.as_ref().map(|push| push.destinations(current_branch.as_deref())).unwrap_or_default();
-	let destination = if destinations.is_empty() {
-		repository::push_target(configuration).or(current_branch)
-	} else {
-		Some(destinations.join(", "))
-	};
+	let mut updates = Vec::new();
+	let mut deletions = Vec::new();
+	for destination in push.as_ref().map(|push| push.destinations(current_branch.as_deref())).unwrap_or_default() {
+		match destination {
+			Destination::Update(update) => updates.push(update),
+			Destination::Delete(reference) => deletions.push(git::push::deletion(&reference, repository::has_tag)),
+		}
+	}
+	if updates.is_empty() && deletions.is_empty() {
+		updates.extend(repository::push_target(configuration).or(current_branch).map(Update::Branch));
+	}
 	let commits = push.as_ref().and_then(|push| repository::commits_not_on_remote(configuration, &push.sources(), push.tracking_remote()));
-	Request::Push { repository, destination, commits }
+	Request::Push { repository, updates, commits, deletions }
 }
 
 pub fn sign() -> ! {

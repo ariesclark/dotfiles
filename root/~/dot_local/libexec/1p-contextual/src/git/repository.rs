@@ -37,6 +37,10 @@ pub fn folder() -> Option<String> {
 	file_name(repository)
 }
 
+pub fn has_tag(name: &str) -> bool {
+	git(&[], &["rev-parse", "--verify", "--quiet", &format!("refs/tags/{name}")]).is_some()
+}
+
 fn branch_of_remote_ref(remote_ref: &str) -> Option<String> {
 	let (_remote, branch) = remote_ref.strip_prefix("refs/remotes/")?.split_once('/')?;
 	Some(branch.to_string())

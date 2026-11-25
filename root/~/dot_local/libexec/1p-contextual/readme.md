@@ -6,6 +6,7 @@ When git asks 1Password's SSH agent for a key, 1Password's prompt names the prog
 - Allow **Visual Studio Code, signing “feat(git)꞉ add the backup job” in ariesclark∕dotfiles꞉main,** to use SSH key
 - Allow **PowerShell 7, signing tag v1 “release it” in ariesclark∕dotfiles (some-worktree),** to use SSH key
 - Allow **Claude, fetching from someone∕project (some-worktree),** to use SSH key
+- Allow **git, deleting branch fix∕old from someone∕project,** to use SSH key
 
 It works on Windows, with Git for Windows, and in WSL, with 1Password for Windows as the agent.
 
@@ -32,11 +33,13 @@ In WSL, the programs have no `.exe`, and the ssh is `ssh.exe`, the Windows ssh t
 ## The label
 
 - **A push** names the commits it carries, the repository, and the branch it goes to. The branch comes from git's own command line, so `git push origin HEAD:main` names `main`; a push with no branch names where git would push the current branch (`@{push}`). The commits are those the remote does not have yet, by your remote-tracking refs.
+- **A deletion** (`git push --delete`, or a refspec like `:old`) names the branches and tags it deletes. A bare name is a tag when a local tag has that name, and otherwise a branch. A push that also deletes names both: "pushing … and deleting branch old".
 - **A fetch**, an archive or an LFS transfer names the repository.
 - **A signature** names the first line of the commit or tag message, the repository from the `origin` remote or the repository's folder, and the checked-out branch. A tag shows its name in place of the branch.
-- The worktree's folder follows in brackets, unless it is the repository's name, or the branch's name or its last part.
-- The label begins with the application that ran git, and the request follows between commas, so the label fits 1Password's sentence: "Allow Claude, pushing …, to use SSH key". The application is the topmost program in the chain of parent processes that is outside the Windows folder, which is the program 1Password itself would name. Its name is its file description, else its product name, else its file name. When there is none, the label begins with git. The chain stops at a parent that has ended, or that started after its child, since Windows reuses process IDs.
-- File names cannot hold `/` or `:`, so the label has `∕` (U+2215) and `꞉` (U+A789) in their place. A subject longer than 60 characters is cut with `…`, and the whole label at 120.
+- The worktree's folder follows in brackets at the end, unless it is the repository's name, or a branch's name or its last part.
+- The label begins with the application that ran git, and the request follows between commas, so the label fits 1Password's sentence: "Allow Claude, pushing …, to use SSH key". The application is the topmost program in the chain of parent processes that is outside the Windows folder and outside WSL's own folder (from `HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Lxss\MSI`, `InstallLocation`), which is the program 1Password itself would name, less WSL's plumbing. Its name is its file description, else its product name, else its file name. When there is none, the label begins with git. The chain stops at a parent that has ended, or that started after its child, since Windows reuses process IDs. A program in WSL whose `wsl.exe` has ended, such as a daemon, has no application on the Windows side.
+- File names cannot hold `/` or `:`, so the label has `∕` (U+2215) and `꞉` (U+A789) in their place. A subject longer than 60 characters is cut with `…`. A label longer than 120 characters drops the worktree first, and only then is cut with `…`.
+- The words come from [`translations/en-US.json`](translations/en-US.json), built into the programs.
 - Any other ssh command, and every `op-ssh-sign` command other than `-Y sign`, such as verification, runs as it is, under no name.
 
 ## How

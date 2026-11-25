@@ -5,7 +5,8 @@ use std::path::{Path, PathBuf};
 use std::{mem, process, ptr, slice};
 
 use windows_sys::Wdk::System::Threading::{NtQueryInformationProcess, ProcessCommandLineInformation};
-use windows_sys::Win32::Foundation::{CloseHandle, LocalFree, FALSE, FILETIME, HANDLE, INVALID_HANDLE_VALUE, UNICODE_STRING};
+use windows_sys::Win32::Foundation::{CloseHandle, LocalFree, ERROR_SUCCESS, FALSE, FILETIME, HANDLE, INVALID_HANDLE_VALUE, UNICODE_STRING};
+use windows_sys::Win32::System::Registry::{RegGetValueW, HKEY_LOCAL_MACHINE, RRF_RT_REG_SZ};
 use windows_sys::Win32::Storage::FileSystem::{GetFileVersionInfoSizeW, GetFileVersionInfoW, VerQueryValueW};
 use windows_sys::Win32::System::Diagnostics::ToolHelp::{CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W, TH32CS_SNAPPROCESS};
 use windows_sys::Win32::System::SystemInformation::GetSystemWindowsDirectoryW;
@@ -84,12 +85,25 @@ fn windows_folder() -> Option<PathBuf> {
 	(length > 0 && length < buffer.len()).then(|| PathBuf::from(OsString::from_wide(&buffer[..length])))
 }
 
+fn wsl_folder() -> Option<PathBuf> {
+	let key = wide(OsStr::new(r"SOFTWARE\Microsoft\Windows\CurrentVersion\Lxss\MSI"));
+	let value = wide(OsStr::new("InstallLocation"));
+	let mut buffer = vec![0u16; 32_768];
+	let mut size = (buffer.len() * 2) as u32;
+	let status = unsafe { RegGetValueW(HKEY_LOCAL_MACHINE, key.as_ptr(), value.as_ptr(), RRF_RT_REG_SZ, ptr::null_mut(), buffer.as_mut_ptr() as *mut c_void, &mut size) };
+	if status != ERROR_SUCCESS {
+		return None;
+	}
+	let characters = (size as usize / 2).saturating_sub(1);
+	(characters > 0).then(|| PathBuf::from(OsString::from_wide(&buffer[..characters])))
+}
+
 fn is_inside(path: &Path, folder: &Path) -> bool {
 	Path::new(&path.to_string_lossy().to_lowercase()).starts_with(folder.to_string_lossy().to_lowercase())
 }
 
-fn topmost_outside<'chain>(executables: &'chain [PathBuf], folder: &Path) -> Option<&'chain PathBuf> {
-	executables.iter().rev().find(|executable| !is_inside(executable, folder))
+fn topmost_outside<'chain>(executables: &'chain [PathBuf], folders: &[PathBuf]) -> Option<&'chain PathBuf> {
+	executables.iter().rev().find(|executable| !folders.iter().any(|folder| is_inside(executable, folder)))
 }
 
 fn wide(text: &OsStr) -> Vec<u16> {
@@ -135,9 +149,9 @@ pub struct Application {
 }
 
 pub fn application() -> Option<Application> {
-	let folder = windows_folder()?;
+	let folders: Vec<PathBuf> = [windows_folder(), wsl_folder()].into_iter().flatten().collect();
 	let executables: Vec<PathBuf> = ancestors(APPLICATION_SEARCH_DEPTH).into_iter().map_while(executable_of).collect();
-	topmost_outside(&executables, &folder).map(|executable| Application { name: name_of(executable), executable: executable.clone() })
+	topmost_outside(&executables, &folders).map(|executable| Application { name: name_of(executable), executable: executable.clone() })
 }
 
 pub fn arguments_of(process: u32) -> Option<Vec<String>> {
@@ -195,20 +209,40 @@ mod tests {
 		]
 		.map(PathBuf::from)
 		.to_vec();
-		assert_eq!(topmost_outside(&chain, Path::new(r"C:\Windows")), Some(&chain[3]));
+		assert_eq!(topmost_outside(&chain, &windows()), Some(&chain[3]));
+	}
+
+	fn windows() -> Vec<PathBuf> {
+		vec![PathBuf::from(r"C:\Windows")]
 	}
 
 	#[test]
 	fn picks_nothing_when_every_executable_is_in_the_windows_folder() {
 		let chain: Vec<PathBuf> = [r"C:\Windows\System32\cmd.exe", r"C:\WINDOWS\explorer.exe"].map(PathBuf::from).to_vec();
-		assert_eq!(topmost_outside(&chain, Path::new(r"C:\Windows")), None);
-		assert_eq!(topmost_outside(&[], Path::new(r"C:\Windows")), None);
+		assert_eq!(topmost_outside(&chain, &windows()), None);
+		assert_eq!(topmost_outside(&[], &windows()), None);
+	}
+
+	#[test]
+	fn passes_over_every_given_folder() {
+		let chain: Vec<PathBuf> = [r"C:\Users\aries\.local\libexec\1p-contextual\ssh.exe", r"C:\Program Files\WSL\wslhost.exe", r"C:\Program Files\WSL\wsl.exe", r"C:\WINDOWS\system32\wsl.exe"]
+			.map(PathBuf::from)
+			.to_vec();
+		let folders = [windows(), vec![PathBuf::from(r"C:\Program Files\WSL\")]].concat();
+		assert_eq!(topmost_outside(&chain, &folders), Some(&chain[0]));
+		assert_eq!(topmost_outside(&chain, &windows()), Some(&chain[2]));
+	}
+
+	#[test]
+	fn reads_where_wsl_is_installed() {
+		let folder = wsl_folder().expect("WSL should be installed where the tests run");
+		assert!(folder.join("wsl.exe").is_file(), "{} should hold wsl.exe", folder.display());
 	}
 
 	#[test]
 	fn treats_a_folder_that_only_starts_like_the_windows_folder_as_outside_it() {
 		let chain = vec![PathBuf::from(r"C:\Windows.old\app.exe")];
-		assert_eq!(topmost_outside(&chain, Path::new(r"C:\Windows")), Some(&chain[0]));
+		assert_eq!(topmost_outside(&chain, &windows()), Some(&chain[0]));
 	}
 
 	#[test]

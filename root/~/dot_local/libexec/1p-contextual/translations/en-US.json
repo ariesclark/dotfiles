@@ -1,0 +1,47 @@
+{
+  "prompt": "{application}, {request},",
+  "unknownApplication": "git",
+  "withWorktree": "{request} ({worktree})",
+  "list": {
+    "separator": ", ",
+    "lastSeparator": " and "
+  },
+  "place": "{repository}:{destination}",
+  "push": {
+    "uncounted": "pushing to {place}",
+    "counted": {
+      "one": "pushing {count} commit to {place}",
+      "other": "pushing {count} commits to {place}"
+    },
+    "alsoDeleting": "{push} and deleting {deletions}"
+  },
+  "update": {
+    "tag": "tag {name}",
+    "allBranches": "all branches",
+    "everything": "everything",
+    "allTags": "all tags"
+  },
+  "delete": "deleting {deletions} from {repository}",
+  "deleted": {
+    "branches": {
+      "one": "branch {names}",
+      "other": "branches {names}"
+    },
+    "tags": {
+      "one": "tag {names}",
+      "other": "tags {names}"
+    }
+  },
+  "fetch": "fetching from {repository}",
+  "archive": "fetching an archive from {repository}",
+  "lfs": {
+    "upload": "uploading LFS objects to {repository}",
+    "download": "downloading LFS objects from {repository}"
+  },
+  "sign": {
+    "commit": "signing in {place}",
+    "commitWithSubject": "signing “{subject}” in {place}",
+    "tag": "signing tag {tag} in {repository}",
+    "tagWithSubject": "signing tag {tag} “{subject}” in {repository}"
+  }
+}

@@ -3,6 +3,8 @@ use std::ffi::{OsStr, OsString};
 use std::os::unix::process::CommandExt;
 use std::process::{self, Command, Stdio};
 
+use crate::label::Label;
+
 pub const SIGNER: &str = "op-ssh-sign-wsl.exe";
 
 pub fn pass_through(program: &OsStr, arguments: &[OsString]) -> ! {
@@ -30,10 +32,11 @@ pub fn signer_arguments(arguments: &[OsString]) -> Vec<OsString> {
 		.collect()
 }
 
-pub fn run_named(label: &str, program: &OsStr, arguments: &[OsString]) -> ! {
+pub fn run_named(label: &Label, program: &OsStr, arguments: &[OsString]) -> ! {
 	let windows_build = env::current_exe().ok().and_then(|path| path.parent().map(|directory| directory.join("1p-contextual.exe")));
 	if let Some(windows_build) = windows_build {
-		let error = Command::new(&windows_build).arg(super::RUN_NAMED).arg(label).arg(program).args(arguments).exec();
+		let worktree = label.worktree.as_deref().unwrap_or_default();
+		let error = Command::new(&windows_build).arg(super::RUN_NAMED).args([label.request.as_str(), worktree]).arg(program).args(arguments).exec();
 		eprintln!("1p-contextual: could not start {}: {error}; running {} without a name", windows_build.display(), program.to_string_lossy());
 	}
 	pass_through(program, arguments)

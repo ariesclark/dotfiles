@@ -55,37 +55,59 @@ impl Fixture {
 		windows_path(&self.windows.path().join("lister.exe")).replace('\\', "/")
 	}
 
-	fn git(&self, directory: &Path, arguments: &[impl AsRef<OsStr>]) -> i32 {
+	fn wsl(&self, directory: &Path) -> Vec<String> {
 		let distribution = env::var("WSL_DISTRO_NAME").expect("the tests should run in WSL");
 		let windows = |name: &str| self.windows.path().join(name).display().to_string();
-		let status = self.windows.path().join("status");
-		let detached = Command::new(self.windows.path().join(TEST_APP))
+		let mut command = ["wsl.exe", "--distribution", &distribution, "--cd", &directory.display().to_string()].map(str::to_string).to_vec();
+		command.extend(["--exec", "env", "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_NOSYSTEM=1"].map(str::to_string));
+		command.extend([format!("TEMP={}", windows("temp")), format!("TMP={}", windows("temp"))]);
+		command.extend([format!("CONTEXTUAL_LISTING={}", windows("listing")), format!("CONTEXTUAL_ARGUMENTS={}", windows("arguments"))]);
+		command.extend(["WSLENV=TEMP/p:TMP/p:CONTEXTUAL_LISTING/p:CONTEXTUAL_ARGUMENTS/p".to_string(), format!("OP_SSH_SIGN_CONTEXTUAL_PROGRAM={}", self.lister())]);
+		command
+	}
+
+	fn git_command(arguments: &[impl AsRef<OsStr>]) -> Vec<String> {
+		let mut command = ["git", "-c", "init.defaultBranch=main", "-c", "user.name=Stub", "-c", "user.email=stub@example.com", "-c", "commit.gpgsign=false"].map(str::to_string).to_vec();
+		command.extend(arguments.iter().map(|argument| argument.as_ref().to_string_lossy().into_owned()));
+		command
+	}
+
+	fn from_app(&self, mode: &str, command: &[String], status: &Path) -> i32 {
+		let started = Command::new(self.windows.path().join(TEST_APP))
 			.current_dir(self.windows.path())
-			.arg("--detach")
-			.arg(windows_path(self.windows.path()) + "\\status")
-			.args(["wsl.exe", "--distribution", &distribution, "--cd"])
-			.arg(directory)
-			.args(["--exec", "env", "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_NOSYSTEM=1"])
-			.args([format!("TEMP={}", windows("temp")), format!("TMP={}", windows("temp"))])
-			.args([format!("CONTEXTUAL_LISTING={}", windows("listing")), format!("CONTEXTUAL_ARGUMENTS={}", windows("arguments"))])
-			.args(["WSLENV=TEMP/p:TMP/p:CONTEXTUAL_LISTING/p:CONTEXTUAL_ARGUMENTS/p".to_string(), format!("OP_SSH_SIGN_CONTEXTUAL_PROGRAM={}", self.lister())])
-			.args(["git", "-c", "init.defaultBranch=main", "-c", "user.name=Stub", "-c", "user.email=stub@example.com", "-c", "commit.gpgsign=false"])
-			.args(arguments)
+			.arg(mode)
+			.args(command)
 			.stdin(Stdio::null())
 			.stdout(Stdio::null())
 			.stderr(Stdio::null())
 			.status();
-		assert!(detached.expect("the app should run").success());
+		assert!(started.expect("the app should run").success());
 		let started = Instant::now();
 		let code = loop {
-			if let Ok(code) = fs::read_to_string(&status) {
+			if let Ok(code) = fs::read_to_string(status) {
 				break code;
 			}
-			assert!(started.elapsed() < Duration::from_secs(60), "the app should finish git");
+			assert!(started.elapsed() < Duration::from_secs(60), "git should finish");
 			thread::sleep(Duration::from_millis(100));
 		};
-		fs::remove_file(&status).unwrap();
-		code.trim().parse().expect("the app should record an exit code")
+		fs::remove_file(status).unwrap();
+		code.trim().parse().expect("an exit code should be recorded")
+	}
+
+	fn git(&self, directory: &Path, arguments: &[impl AsRef<OsStr>]) -> i32 {
+		let mut command = vec![windows_path(self.windows.path()) + "\\status"];
+		command.extend(self.wsl(directory));
+		command.extend(Self::git_command(arguments));
+		self.from_app("--detach", &command, &self.windows.path().join("status"))
+	}
+
+	fn git_without_a_windows_application(&self, directory: &Path, arguments: &[impl AsRef<OsStr>]) -> i32 {
+		let status = self.linux.path().join("status");
+		let mut command = self.wsl(directory);
+		command.extend(["sh", "-c", r#""$@"; echo $? > "$0.partial" && mv "$0.partial" "$0""#].map(str::to_string));
+		command.push(status.display().to_string());
+		command.extend(Self::git_command(arguments));
+		self.from_app("--orphan", &command, &status)
 	}
 
 	fn checkout(&self) -> PathBuf {
@@ -98,6 +120,7 @@ impl Fixture {
 
 	fn read(&self, name: &str) -> Vec<String> {
 		let text = fs::read_to_string(self.windows.path().join(name)).unwrap_or_else(|error| panic!("the stand-in should have written {name}: {error}"));
+		fs::remove_file(self.windows.path().join(name)).unwrap();
 		text.lines().filter(|line| !line.is_empty()).map(str::to_string).collect()
 	}
 }
@@ -109,6 +132,15 @@ fn names_a_push_from_wsl_through_the_windows_build() {
 	let ssh_command = format!("core.sshCommand={} {}", fixture.linux.path().join("ssh").display(), fixture.lister());
 	fixture.git(&checkout, &["-c", &ssh_command, "push", "--dry-run", UNRESOLVABLE, "HEAD:main"]);
 	assert_eq!(fixture.read("listing"), ["Test App, pushing 1 commit to owner∕repo꞉main (wsl-check),.exe"]);
+}
+
+#[test]
+fn names_git_not_wsl_when_no_windows_application_runs_wsl() {
+	let fixture = Fixture::new();
+	let checkout = fixture.checkout();
+	let ssh_command = format!("core.sshCommand={} {}", fixture.linux.path().join("ssh").display(), fixture.lister());
+	fixture.git_without_a_windows_application(&checkout, &["-c", &ssh_command, "push", "--dry-run", UNRESOLVABLE, "HEAD:main"]);
+	assert_eq!(fixture.read("listing"), ["git, pushing 1 commit to owner∕repo꞉main (wsl-check),.exe"]);
 }
 
 #[test]

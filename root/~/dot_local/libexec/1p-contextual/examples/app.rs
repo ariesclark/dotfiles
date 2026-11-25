@@ -36,6 +36,9 @@ fn main() {
 		Some((mode, rest)) if mode == "--detach" => {
 			Command::new(env::current_exe().expect("its own path")).arg("--run").args(rest).spawn().expect("the detached run should start");
 		}
+		Some((mode, [program, command @ ..])) if mode == "--orphan" => {
+			Command::new(program).args(command).spawn().expect("the orphaned program should start");
+		}
 		Some((mode, [status, program, command @ ..])) if mode == "--run" => {
 			let code = Command::new(program).args(command).status().map_or(255, |status| status.code().unwrap_or(255));
 			let partial = format!("{status}.partial");

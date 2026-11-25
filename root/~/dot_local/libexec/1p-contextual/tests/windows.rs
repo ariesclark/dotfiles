@@ -219,6 +219,41 @@ fn leaves_the_worktree_out_when_it_is_named_for_the_repository() {
 }
 
 #[test]
+fn names_a_branch_deletion_for_the_branch_it_deletes() {
+	let fixture = Fixture::new();
+	let checkout = fixture.checkout("elsewhere", Some("claude/feature"));
+	fixture.push(&checkout, &["--delete", "old"]);
+	assert_eq!(fixture.listing(), ["Test App, deleting branch old from owner∕repo (elsewhere),.exe"]);
+}
+
+#[test]
+fn names_a_tag_deletion_for_the_tag_it_deletes() {
+	let fixture = Fixture::new();
+	let checkout = fixture.checkout("elsewhere", Some("claude/feature"));
+	fixture.push(&checkout, &[":refs/tags/v1"]);
+	assert_eq!(fixture.listing(), ["Test App, deleting tag v1 from owner∕repo (elsewhere),.exe"]);
+	fixture.git(&checkout, &["tag", "v2"]);
+	fixture.push(&checkout, &["--delete", "v2"]);
+	assert_eq!(fixture.listing(), ["Test App, deleting tag v2 from owner∕repo (elsewhere),.exe"]);
+}
+
+#[test]
+fn names_a_push_that_also_deletes_a_branch() {
+	let fixture = Fixture::new();
+	let checkout = fixture.checkout("elsewhere", Some("claude/feature"));
+	fixture.push(&checkout, &["HEAD:main", ":old"]);
+	assert_eq!(fixture.listing(), ["Test App, pushing 1 commit to owner∕repo꞉main and deleting branch old (elsewhere),.exe"]);
+}
+
+#[test]
+fn leaves_out_a_worktree_that_would_not_fit_rather_than_cut_it() {
+	let fixture = Fixture::new();
+	let checkout = fixture.checkout("a-worktree-named-at-such-length-that-the-label-cannot-hold-it-whole", Some("claude/feature"));
+	fixture.push(&checkout, &["HEAD"]);
+	assert_eq!(fixture.listing(), ["Test App, pushing 1 commit to owner∕repo꞉claude∕feature,.exe"]);
+}
+
+#[test]
 fn names_a_fetch_for_its_repository_and_worktree() {
 	let fixture = Fixture::new();
 	let checkout = fixture.checkout("elsewhere", Some("claude/feature"));

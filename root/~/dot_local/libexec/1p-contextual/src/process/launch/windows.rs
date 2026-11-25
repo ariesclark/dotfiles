@@ -25,6 +25,7 @@ use windows_sys::Win32::System::Threading::{
 };
 
 use super::command_line;
+use crate::label::Label;
 
 pub const SIGNER: &str = "op-ssh-sign.exe";
 const STILL_ACTIVE: u32 = 259;
@@ -102,21 +103,22 @@ pub fn supervise(arguments: &[OsString]) -> ! {
 	pass_through(program, rest)
 }
 
-pub fn run_named(label: &str, program: &OsStr, arguments: &[OsString]) -> ! {
+pub fn run_named(label: &Label, program: &OsStr, arguments: &[OsString]) -> ! {
 	run(label, program, arguments, Streams::Own)
 }
 
 pub fn run_named_from_wsl(arguments: &[OsString]) -> ! {
-	let [label, program, rest @ ..] = arguments else {
-		eprintln!("1p-contextual: a named run needs a label and a program");
+	let [request, worktree, program, rest @ ..] = arguments else {
+		eprintln!("1p-contextual: a named run needs a request, a worktree and a program");
 		process::exit(2);
 	};
-	run(&label.to_string_lossy(), program, rest, Streams::Relayed)
+	let worktree = (!worktree.is_empty()).then(|| worktree.to_string_lossy().into_owned());
+	run(&Label { request: request.to_string_lossy().into_owned(), worktree }, program, rest, Streams::Relayed)
 }
 
-fn run(label: &str, program: &OsStr, arguments: &[OsString], streams: Streams) -> ! {
+fn run(label: &Label, program: &OsStr, arguments: &[OsString], streams: Streams) -> ! {
 	let application = crate::process::ancestry::application();
-	let label = crate::label::with_application(application.as_ref().map(|application| application.name.as_str()), label);
+	let label = crate::label::rendered(application.as_ref().map(|application| application.name.as_str()), label);
 	let icon_source = application.as_ref().map(|application| application.executable.as_path());
 	match start_named(&label, icon_source, program, arguments, streams) {
 		Ok(status) => process::exit(status),

@@ -1,3 +1,5 @@
+use crate::request::{Deletion, Update};
+
 pub struct Push {
 	pub configuration: Vec<String>,
 	remote: Option<String>,
@@ -59,40 +61,56 @@ pub fn parse(arguments: &[String]) -> Option<Push> {
 	Some(push)
 }
 
-fn short_ref(reference: &str) -> String {
+#[derive(Debug, PartialEq)]
+pub enum Destination {
+	Update(Update),
+	Delete(String),
+}
+
+fn update_of(reference: &str) -> Update {
 	if let Some(tag) = reference.strip_prefix("refs/tags/") {
-		return format!("tag {tag}");
+		return Update::Tag(tag.to_string());
 	}
-	reference.strip_prefix("refs/heads/").unwrap_or(reference).to_string()
+	Update::Branch(reference.strip_prefix("refs/heads/").unwrap_or(reference).to_string())
+}
+
+pub fn deletion(reference: &str, is_tag: impl Fn(&str) -> bool) -> Deletion {
+	if let Some(tag) = reference.strip_prefix("refs/tags/") {
+		return Deletion::Tag(tag.to_string());
+	}
+	if let Some(branch) = reference.strip_prefix("refs/heads/") {
+		return Deletion::Branch(branch.to_string());
+	}
+	if is_tag(reference) { Deletion::Tag(reference.to_string()) } else { Deletion::Branch(reference.to_string()) }
 }
 
 impl Push {
-	fn destination(&self, refspec: &str, current_branch: Option<&str>) -> String {
+	fn destination(&self, refspec: &str, current_branch: Option<&str>) -> Destination {
 		let refspec = refspec.strip_prefix('+').unwrap_or(refspec);
 		if self.delete {
-			return format!("delete {}", short_ref(refspec));
+			return Destination::Delete(refspec.to_string());
 		}
 		match refspec.split_once(':') {
-			Some(("", deleted)) => format!("delete {}", short_ref(deleted)),
-			Some((_, target)) => short_ref(target),
-			None if refspec == "HEAD" => current_branch.unwrap_or("HEAD").to_string(),
-			None => short_ref(refspec),
+			Some(("", deleted)) => Destination::Delete(deleted.to_string()),
+			Some((_, target)) => Destination::Update(update_of(target)),
+			None if refspec == "HEAD" => Destination::Update(Update::Branch(current_branch.unwrap_or("HEAD").to_string())),
+			None => Destination::Update(update_of(refspec)),
 		}
 	}
 
-	pub fn destinations(&self, current_branch: Option<&str>) -> Vec<String> {
-		let mut names = Vec::new();
+	pub fn destinations(&self, current_branch: Option<&str>) -> Vec<Destination> {
+		let mut destinations = Vec::new();
 		if self.all {
-			names.push("all branches".to_string());
+			destinations.push(Destination::Update(Update::AllBranches));
 		}
 		if self.mirror {
-			names.push("everything".to_string());
+			destinations.push(Destination::Update(Update::Everything));
 		}
 		if self.tags {
-			names.push("all tags".to_string());
+			destinations.push(Destination::Update(Update::AllTags));
 		}
-		names.extend(self.refspecs.iter().map(|refspec| self.destination(refspec, current_branch)));
-		names
+		destinations.extend(self.refspecs.iter().map(|refspec| self.destination(refspec, current_branch)));
+		destinations
 	}
 
 	pub fn sources(&self) -> Vec<String> {
@@ -134,6 +152,10 @@ mod tests {
 		parse(&arguments(line)).expect("a push command")
 	}
 
+	fn updates(branches: &[&str]) -> Vec<Destination> {
+		branches.iter().map(|branch| Destination::Update(Update::Branch(branch.to_string()))).collect()
+	}
+
 	#[test]
 	fn finds_no_push_in_other_commands() {
 		assert!(parse(&arguments("git fetch origin")).is_none());
@@ -143,43 +165,53 @@ mod tests {
 
 	#[test]
 	fn takes_the_destination_after_the_colon() {
-		assert_eq!(push("git push origin HEAD:main").destinations(Some("claude/feature")), ["main"]);
-		assert_eq!(push("git push origin +HEAD:refs/heads/main").destinations(Some("claude/feature")), ["main"]);
-		assert_eq!(push("git push origin feature:release/1").destinations(Some("main")), ["release/1"]);
+		assert_eq!(push("git push origin HEAD:main").destinations(Some("claude/feature")), updates(&["main"]));
+		assert_eq!(push("git push origin +HEAD:refs/heads/main").destinations(Some("claude/feature")), updates(&["main"]));
+		assert_eq!(push("git push origin feature:release/1").destinations(Some("main")), updates(&["release/1"]));
 	}
 
 	#[test]
 	fn pushes_a_lone_ref_to_its_own_name() {
-		assert_eq!(push("git push origin main").destinations(Some("claude/feature")), ["main"]);
-		assert_eq!(push("git push origin refs/heads/dev").destinations(Some("main")), ["dev"]);
+		assert_eq!(push("git push origin main").destinations(Some("claude/feature")), updates(&["main"]));
+		assert_eq!(push("git push origin refs/heads/dev").destinations(Some("main")), updates(&["dev"]));
 	}
 
 	#[test]
 	fn pushes_head_to_the_current_branch() {
-		assert_eq!(push("git push origin HEAD").destinations(Some("claude/feature")), ["claude/feature"]);
+		assert_eq!(push("git push origin HEAD").destinations(Some("claude/feature")), updates(&["claude/feature"]));
 	}
 
 	#[test]
 	fn names_tags_and_deletions() {
-		assert_eq!(push("git push origin refs/tags/v1").destinations(Some("main")), ["tag v1"]);
-		assert_eq!(push("git push origin :old").destinations(Some("main")), ["delete old"]);
-		assert_eq!(push("git push --delete origin old").destinations(Some("main")), ["delete old"]);
-		assert_eq!(push("git push --tags origin").destinations(Some("main")), ["all tags"]);
+		assert_eq!(push("git push origin refs/tags/v1").destinations(Some("main")), [Destination::Update(Update::Tag("v1".to_string()))]);
+		assert_eq!(push("git push origin :old").destinations(Some("main")), [Destination::Delete("old".to_string())]);
+		assert_eq!(push("git push origin +:refs/tags/v1").destinations(Some("main")), [Destination::Delete("refs/tags/v1".to_string())]);
+		assert_eq!(push("git push --delete origin old").destinations(Some("main")), [Destination::Delete("old".to_string())]);
+		assert_eq!(push("git push --tags origin").destinations(Some("main")), [Destination::Update(Update::AllTags)]);
+	}
+
+	#[test]
+	fn tells_a_deleted_branch_from_a_deleted_tag() {
+		let no_tags = |_: &str| false;
+		assert_eq!(deletion("refs/tags/v1", no_tags), Deletion::Tag("v1".to_string()));
+		assert_eq!(deletion("refs/heads/v1", |_| true), Deletion::Branch("v1".to_string()));
+		assert_eq!(deletion("old", no_tags), Deletion::Branch("old".to_string()));
+		assert_eq!(deletion("v1", |name| name == "v1"), Deletion::Tag("v1".to_string()));
 	}
 
 	#[test]
 	fn names_every_destination_of_a_push() {
-		assert_eq!(push("git push origin main dev").destinations(Some("main")), ["main", "dev"]);
-		assert_eq!(push("git push --all origin").destinations(Some("main")), ["all branches"]);
-		assert_eq!(push("git push --mirror origin").destinations(Some("main")), ["everything"]);
+		assert_eq!(push("git push origin main dev").destinations(Some("main")), updates(&["main", "dev"]));
+		assert_eq!(push("git push --all origin").destinations(Some("main")), [Destination::Update(Update::AllBranches)]);
+		assert_eq!(push("git push --mirror origin").destinations(Some("main")), [Destination::Update(Update::Everything)]);
 	}
 
 	#[test]
 	fn skips_global_options_and_option_values() {
-		assert_eq!(push("git -C /repo -c push.default=current push --dry-run -o ci.skip origin HEAD:main").destinations(Some("x")), ["main"]);
-		assert_eq!(push("git push --force-with-lease=main --push-option ci.skip origin HEAD:main").destinations(Some("x")), ["main"]);
+		assert_eq!(push("git -C /repo -c push.default=current push --dry-run -o ci.skip origin HEAD:main").destinations(Some("x")), updates(&["main"]));
+		assert_eq!(push("git push --force-with-lease=main --push-option ci.skip origin HEAD:main").destinations(Some("x")), updates(&["main"]));
 		let windows_git = ["C:\\Program Files\\Git\\mingw64\\bin\\git.exe", "push", "origin", "HEAD:main"].map(str::to_string);
-		assert_eq!(parse(&windows_git).expect("a push command").destinations(Some("x")), ["main"]);
+		assert_eq!(parse(&windows_git).expect("a push command").destinations(Some("x")), updates(&["main"]));
 	}
 
 	#[test]
