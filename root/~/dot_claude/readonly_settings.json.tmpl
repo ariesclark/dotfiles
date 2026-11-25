@@ -6,6 +6,10 @@
 {{-   range $marketplace := values $linux.extraKnownMarketplaces -}}
 {{-     $_ := set $marketplace.source "path" (joinPath $.chezmoi.homeDir $marketplace.source.path) -}}
 {{-   end -}}
+{{-   range $event, $entries := $linux.hooks -}}
+{{-     $_ := set $settings.hooks $event (concat (get $settings.hooks $event | default list) $entries) -}}
+{{-   end -}}
+{{-   $linux = omit $linux "hooks" -}}
 {{-   $settings = mergeOverwrite $settings $linux -}}
 {{- end -}}
 {{ $settings | toPrettyJson }}

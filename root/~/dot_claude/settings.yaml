@@ -113,6 +113,14 @@ linux:
     type: command
     command: .claude/statusline.sh
 
+  # Claude's WSL sessions run under a daemon whose wsl.exe has exited, so the Windows programs they start have no
+  # Windows parent. The desktop's live bridge has one; wsl-interop.sh points each Bash command at the bridge's socket.
+  hooks:
+    SessionStart:
+      - hooks:
+          - type: command
+            command: printf '. "$HOME/.claude/wsl-interop.sh" /proc "$$"\n' >> "$CLAUDE_ENV_FILE"
+
   enabledPlugins:
     github@ariesclark: true
     guardrails@ariesclark: true
