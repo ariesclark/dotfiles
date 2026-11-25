@@ -59,6 +59,8 @@ Taste counts as much as correctness. Working is the floor: decide how a thing sh
 
 - Design it, don't accrete it. Every name, default, boundary and format is a decision to make once, on purpose; a shape that emerged from successive patches reads like what it is.
 - Prefer the simpler shape that needs no explanation over the clever one that does.
+- Use a dependency before writing your own. Someone else's maintained work is less to build and less to keep working: look for the tool's own answer, the official package, the library that already does it, and check it is actively maintained before leaning on it. Write it yourself only when nothing fits, or the need is a few lines.
+- When something we depend on has a bug, fix it upstream, so the fix is maintained there and not carried by us. Prepare the fix and its issue or pull request for me to send, and keep a local patch only until it lands.
 - Reuse or delete before adding; a diff that adds more than it removes should be able to say why. In what you write, cut what earns nothing: the redundant option, the defensive branch nothing reaches, the abstraction with one caller.
 
 # Running things
@@ -157,13 +159,13 @@ A state the types cannot express is a bug nobody can write, which beats a check 
 - **Model a lifecycle as a state machine.** Name its states and the events each accepts. "A shipped order is never unshipped" is a transition that does not exist, not a guard that remembers to refuse.
 - **Code for exhaustiveness** ([Minsky](https://blog.janestreet.com/effective-ml/)). Switch on the discriminant without a default, so a new state fails to compile wherever it is not yet handled.
 
-## Use the real structure
+## Use the source's own truth
 A pattern that matched the sample in front of you is a guess about every other input, and a hand-made copy of something that has an authority is wrong the day the authority changes.
 
+- Don't write a type that already exists somewhere; it almost always does. Take it from whatever defines it: the provider's published package or client first, otherwise types generated from its spec (OpenAPI, JSON Schema, GraphQL, protobuf). In our own code, infer from the schema or index into the existing type (`Pick`, `ReturnType`, `typeof`) rather than restating it. Hand-writing a copy is the last resort, after you have looked and can say where.
 - Never parse a structured format with a regex. HTML, JSON, JS/TS, CSS, YAML, SQL, URLs, dates, CSV and semver all have parsers (an AST, `jq` or `JSON.parse`, the `URL` class, `Temporal`, `semver`); use one. A regex is fine on flat text: a line prefix, a log level, a known-fixed token. If the input nests or quotes, it is not flat. Where no parser exists, say so and pick the closest structural approach.
 - Edit through the tree, not the text: rewrite AST nodes, then print, or splice by node source range when formatting must survive.
 - Identify a thing by its structure, never by a string that appears near it. A command is a `git push` because its parsed arguments say so, not because that text occurs in the line: a mention is not an identity.
-- Across a network or third-party boundary, use the provider's published types, schemas and client. Write your own only when no official package exists, and derive from theirs (`Pick`, indexed access) rather than restating it.
 - Keep the names a source already gives, verbatim: its events, statuses and fields. Renaming them adds a translation layer every reader has to undo.
 
 ## Readable without the definition
