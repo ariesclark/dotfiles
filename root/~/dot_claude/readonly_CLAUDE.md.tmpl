@@ -125,6 +125,8 @@ A guard test asserts the change does not over-reach, so it passes before and aft
 ## Git
 Commit once the change works and I've confirmed it, never after each attempt along the way: a commit is the unit I review, and I check the change live first.
 
+**Grouping.** One commit per logical change: everything that change needs, and nothing that belongs to another. After a large batch of work, squash it into those groups rather than one commit for everything or one per attempt, so the history reads as what changed, not as how the work went. Squash only what hasn't been pushed.
+
 **Message.** Conventional Commits, subject only: `<type>(<scope>): <description>`, with the scope when it says where the change landed. Types: `feat`, `fix`, `refactor`, `test`, `perf`, `chore`, `docs`, `style`.
 
 - Imperative mood ("add", not "added"), no trailing period, ≤72 characters, and self-contained: it still names the change a year later, with no diff open.
